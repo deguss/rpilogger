@@ -1,0 +1,8 @@
+# files
+*.~
+*.*~
+*.log
+
+# directories
+log/
+unused/

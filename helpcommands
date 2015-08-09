@@ -1,0 +1,19 @@
+--------------------------- useful commands ------------------------------
+ nano helpcommands         # to edit this hint
+ hostname -I               # show local IP
+ extip                     # show external IP (ipecho.net)
+ ntpq -p                   # check network time protocol synchronization
+ w                         # show logged in users
+ top                       # task manager / cpu monitoring
+ pstree                    # show process tree
+ netstat -tulanp           # list all active internet connections
+ sudo lsof | grep TCP       
+ sudo netstat -plant       # list open ports
+ lsof -p $(pgrep ads)      # list open files of a process
+ find / name "string.c"    # locate file string.c
+ ./catnc.py 2015-05-24 &> /dev/null & disown
+                           # run concatenate script manually
+ cat /proc/interrupts
+ lsmod
+--------------------------------------------------------------------------
+
