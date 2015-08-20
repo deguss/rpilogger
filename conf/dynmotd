@@ -1,0 +1,19 @@
+#!/bin/bash 
+echo -e "\033[1;32mo----------------------------------------------------------------------o 
+|               ____  ____  __                                         | 
+|              / __ \/ __ \/ /___  ____  ____  ___  _____              | 
+|             / /_/ / /_/ / / __ \/ _  \/ _  \/ _ \/ ___/              | 
+|            / _, _/ ____/ / /_/ / /_/ / /_/ /  __/ /                  | 
+|           /_/ |_/_/   /_/\____/\__, /\__, /\___/_/                   | 
+|                                /___/ /___/                        PiD| 
+o----------------------------------------------------------------------o\033[0m 
+Welcome on \033[0;31m$RP\033[0m 
+`date +%Y-%m-%d` `date +%T` `date +%Z` (UTC`date +%:z`) 
+location = $LOCATION
+RAM total `cat /proc/meminfo | grep MemTotal | awk {'print int($2/1024)'}` MB 
+ROM `df -h / | awk '{print "total/used (free) "$2"/"$3" "$5" ("$4")"}' | tail -n 1` 
+`cat /home/pi/helpcommands`
+to display this help enter helpcommands
+
+`ps -p $(pgrep ads -o) -o pid,user,%cpu,%mem,pri,rtprio,nice,start,etime,wchan`"
+

@@ -1,0 +1,4 @@
+# m h  dom mon dow   command
+MAILTO=""
+59 18 1 * * /usr/bin/nice -n 10 /home/pi/tardir.sh >> /home/pi/tardir.log 2>&1
+30 2 * * * /usr/bin/nice -n 10 /home/pi/catnc.py > /dev/null 2>&1

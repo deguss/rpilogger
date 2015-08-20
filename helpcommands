@@ -11,7 +11,7 @@
  sudo lsof | grep TCP       
  sudo netstat -plant       # list open ports
  lsof -p $(pgrep ads)      # list open files of a process
- find / name "string.c"    # locate file string.c
+ find / -name "string.c"   # locate file string.c
  ./catnc.py 2015-05-24 &> /dev/null & disown
                            # run concatenate script manually
  cat /proc/interrupts	   # view interrupts, CPU properities

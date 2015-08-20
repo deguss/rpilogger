@@ -1,0 +1,4 @@
+run_watchdog=1
+# Load module before starting watchdog
+watchdog_module="bcm2708_wdog"
+
