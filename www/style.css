@@ -1,0 +1,96 @@
+#proc_table {
+    font-family: Verdana,monospace;
+	font-size:80%;
+    /*width: 50%;*/
+    border-collapse: collapse;
+}
+
+#proc_table td {
+    font-size: 1em;
+    border-bottom: 1px solid gray;
+    padding: 2px 15px 2px 15px; /* top right */
+    background-color: #58FA58; /*green*/
+}
+
+#proc_table tr.stopped td {
+    /*color: #000000;*/
+    background-color: #FA5858; /*red*/
+}
+#proc_table tr.info td {
+    /*color: #000000;*/
+    background-color: #FFFF7F;
+}
+
+#info_table {
+    font-family: Verdana,monospace;
+	font-size:80%;
+    border-collapse: collapse;
+}
+
+
+a.tooltips {
+  position: relative;
+  display: inline;
+}
+a.tooltips span {
+  position: absolute;
+  width:auto;
+  white-space: nowrap;
+  padding: 0px 10px 0px 10px;
+  max-width:500px;
+  color: #F1FFAB;
+  background: #34A2EB;
+  height: 23px;
+  line-height: 23px;
+  text-align: center;
+  visibility: hidden;
+  border-radius: 10px;
+  box-shadow: 4px 3px 4px #7A807A;
+}
+a.tooltips span:after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  margin-top: -8px;
+  width: 0; height: 0;
+  border-right: 8px solid #34A2EB;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+a:hover.tooltips span {
+  visibility: visible;
+  opacity: 0.95;
+  left: 100%;
+  top: 50%;
+  margin-top: -11.5px;
+  margin-left: 15px;
+  z-index: 999;
+}
+
+
+textarea, table{
+  display:inline-block;
+  vertical-align:top;
+  padding: 0px 20px 2px 20px;
+}
+
+.mono {
+	text-align: center;
+	background: #FFF1EB;
+	font-family: Verdana, monospace;
+    font-size:small;
+}
+
+
+table.tb1 {
+	text-align: center;
+	/*background: #E6E6FA;*/
+	font-family: Verdana, monospace;
+    font-size:small;
+    border-collapse: collapse;
+}
+table.tb1 td, table.tb1 th {
+	border: 1px solid black;
+    padding: 2px 15px 2px 15px; /* top right */
+}
