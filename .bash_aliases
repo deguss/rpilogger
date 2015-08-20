@@ -7,3 +7,4 @@ alias who='echo "kidding"'
 alias ll='ls -lh'
 alias l.='ls -lah'
 alias extip="curl http://ipecho.net/plain; echo"
+alias c='highlight -O ansi -l -t 4'

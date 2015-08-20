@@ -80,7 +80,7 @@ include 'pwd.php';
 
 // analyze the PHP_AUTH_DIGEST variable (empty form)
 if (!($data = http_digest_parse($_SERVER['PHP_AUTH_DIGEST'])) || !isset($users[$data['username']]))
-    die('access denied 2');
+    die('access denied');
 
 
 // generate the valid response
@@ -89,7 +89,7 @@ $A2 = md5($_SERVER['REQUEST_METHOD'].':'.$data['uri']);
 $valid_response = md5($A1.':'.$data['nonce'].':'.$data['nc'].':'.$data['cnonce'].':'.$data['qop'].':'.$A2);
 
 if ($data['response'] != $valid_response) //(wrong user/pwd)
-    die('access denied 3');
+    die('access denied');
 
 // ok, valid username & password
 //echo 'You are logged in as: ' . $data['username'] . '<br>';

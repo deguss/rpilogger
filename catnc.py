@@ -345,7 +345,7 @@ if __name__ == "__main__":
 			else:
 				print "files in %s deleted!" %(dbdir)
 
-		dqy = dy-datetime.timedelta(days=14)
+		dqy = dy-datetime.timedelta(days=10)
 		dqdir = os.path.join(_LOCATION_OUT,dqy.strftime('%Y/%m/%d'))
 		strq = "do you want to remove the files in %s ? (y/n) " % (dqdir)
 		if (os.path.exists(dqdir) and ( (not i_mode) or (i_mode and raw_input(strq) == 'y'))): 
