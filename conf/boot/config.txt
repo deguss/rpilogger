@@ -10,7 +10,7 @@ force_turbo=1
 
 # uncomment this if your display has a black border of unused pixels visible
 # and your display can output without overscan
-disable_overscan=1
+#disable_overscan=1
 
 # uncomment the following to adjust overscan. Use positive numbers if console
 # goes off screen, and negative if there is too much border
@@ -51,5 +51,6 @@ core_freq=250
 sdram_freq=400
 over_voltage=0
 
-#i2c
-dtoverlay=i2c-baudrate,i2c1_baudrate=2000000
+#GPS PPS
+dtoverlay=pps-gpio,gpiopin=18
+dtparam=i2c_arm=on
