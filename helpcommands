@@ -15,6 +15,6 @@
  ./catnc.py 2015-05-24 &> /dev/null & disown
                            # run concatenate script manually
  cat /proc/interrupts	   # view interrupts, CPU properities
- lsmod
+ lsmod                     #
 --------------------------------------------------------------------------
 
