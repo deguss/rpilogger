@@ -1,19 +1,20 @@
 --------------------------- useful commands ------------------------------
  nano helpcommands         # to edit this hint
- c filename                # display content of file (syntax highlighting)
- hostname -I               # show local IP
- extip                     # show external IP (ipecho.net)
- ntpq -p                   # check network time protocol synchronization
- w                         # show logged in users
+ c filename                # displays content of file (syntax highlighting)
+ hostname -I               # shows local IP
+ extip                     # shows external IP (ipecho.net)
+ tail -f rpilogger/rpi.log # shows rpilogger's output
+ ntpq -p                   # checks network time protocol synchronization
+ w                         # shows logged in users
  top                       # task manager / cpu monitoring
- pstree                    # show process tree
- netstat -tulanp           # list all active internet connections
+ pstree                    # shows running processes
+ netstat -tulanp           # lists all active internet connections
  sudo lsof | grep TCP       
- sudo netstat -plant       # list open ports
- lsof -p $(pgrep ads)      # list open files of a process
- find / -name "string.c"   # locate file string.c
+ sudo netstat -plant       # lists open ports
+ lsof -p $(pgrep ads)      # lists open files of a process
+ find / -name "string.c"   # locates file string.c
  ./catnc.py 2015-05-24 &> /dev/null & disown
-                           # run concatenate script manually
+                           # runs concatenate script manually
  cat /proc/interrupts	   # view interrupts, CPU properities
  lsmod                     #
 --------------------------------------------------------------------------
