@@ -6,6 +6,7 @@ IFS=$'\n' read -d '' -r -a lines < files.txt
 for i in "${lines[@]}"; do
 	LF=$(echo $i | cut -c 2-)
 	echo -ne "$LF \t<-> $i \t"
+	touch $i
 	DIFF=$(diff $LF $i)
 	if [ "$DIFF" == "" ]; then
 		echo '[IDENT]'

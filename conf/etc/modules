@@ -8,3 +8,5 @@ snd-bcm2835
 i2c-dev
 spi-dev
 bcm2708_wdog
+# enable followin line if you have gps with pps signal
+#pps-gpio
