@@ -1,6 +1,6 @@
 --------------------------- useful commands ------------------------------
  nano helpcommands         # to edit this hint
- c filename				   # display content of file (syntax highlighting)
+ c filename	               # display content of file (syntax highlighting)
  hostname -I               # show local IP
  extip                     # show external IP (ipecho.net)
  ntpq -p                   # check network time protocol synchronization
