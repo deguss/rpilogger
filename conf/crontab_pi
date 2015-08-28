@@ -1,3 +1,5 @@
 # m h  dom mon dow   command
-MAILTO=""
-30 2 * * * /usr/bin/nice -n 10 /home/pi/catnc.py > /dev/null 2>&1
+MAILTO="" 
+30 2 * * * /usr/bin/nice -n 10 /home/pi/catnc.py 2>1 /dev/null
+@reboot /bin/sleep 60 && /home/pi/online.sh 2>1 /dev/null
+59 * * * * /home/pi/online.sh 2>1 /dev/null
