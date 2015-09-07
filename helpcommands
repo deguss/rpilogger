@@ -16,6 +16,6 @@
  ./catnc.py 2015-05-24 &> /dev/null & disown
                            # runs concatenate script manually
  cat /proc/interrupts	   # view interrupts, CPU properities
- lsmod                     #
+ lsmod                     # list kernel modules loaded
 --------------------------------------------------------------------------
 
