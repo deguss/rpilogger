@@ -7,10 +7,11 @@ then
 fi
 cd /home/pi/rpilogger
 touch checker.log
-pid=$(pgrep ^ads$ -o) 
-if [ "$pid" ] 
+chown pi:pi checker.log
+pid=$(pgrep ^ads$ -o)
+if [ "$pid" ]
 then
-	uw=$(top -bn1 -p $pid | tail -n1 | awk '{print $3}') #35 (cpu percentage as number)
+	uw=$(ps -p $pid -o %cpu | tail -n1 | awk '{printf int($1)}') #35 (cpu percentage as number)
 
 	lllog=$(tail -n10 rpi.log | grep "File written" | tail -n1) #File written: 192736.4995. Samples: 2*30000. Ellapsed: 59.9999s. Size: 235KiB
 	ltime=$(echo $lllog | awk -F': ' '{print $2}' | awk -F'.' '{print $1}') #192736
@@ -58,6 +59,8 @@ fi
 
 curr=$(date +"until_%Y-%m-%dT%H%M%S.txt")
 
+mkdir log
+chown pi:pi log
 cp rpi.log log/$curr
 chown pi:pi log/$curr
 ./ads &
