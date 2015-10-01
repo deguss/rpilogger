@@ -7,7 +7,7 @@ before_install:
  # remove binary
  - rm rpilogger/ads
  # Install necessary packages from apt-get
- #- "./misc/travis_before_install.sh"
+ - sudo apt-get install netcdf-bin
 script:
  - cd rpilogger
  #- make -DCMAKE_BUILD_TYPE=Debug -DACADO_WITH_TESTING=ON ..
