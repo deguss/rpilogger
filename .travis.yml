@@ -9,7 +9,7 @@ compiler:
  #- "./misc/travis_before_install.sh"
 script:
  - cd rpilogger
- - make -DCMAKE_BUILD_TYPE=Debug -DACADO_WITH_TESTING=ON ..
+ #- make -DCMAKE_BUILD_TYPE=Debug -DACADO_WITH_TESTING=ON ..
  - make ads
 after_success:
  # Deploy the source code
