@@ -1,6 +1,7 @@
 /* ads1115.c library written by PiD
 */
 
+
 #include <stdio.h>
 #include <sys/types.h> // open
 #include <sys/stat.h>  // open
