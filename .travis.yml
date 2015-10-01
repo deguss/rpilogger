@@ -1,1 +1,24 @@
 language: c
+os:
+ - linux
+compiler:
+ - gcc
+ - clang
+#before_install:
+ # Install necessary packages from apt-get
+ #- "./misc/travis_before_install.sh"
+script:
+ - cd rpilogger
+ - make -DCMAKE_BUILD_TYPE=Debug -DACADO_WITH_TESTING=ON ..
+ - make ads
+after_success:
+ # Deploy the source code
+ #- cd ..
+ #- "./misc/deploy_code.sh"
+ # Build the documentation and upload it to SF
+ #- "./misc/publish_html.sh"
+notifications:
+# recipients:
+#    - builds@acadotoolkit.org
+  email:
+    on_failure: always
