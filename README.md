@@ -1,4 +1,4 @@
-[Open Source Data Logger](http://opendatalogger.com)
+[Open Source Data Logger](http://opendatalogger.com) [![build-status](https://api.travis-ci.org/deguss/rpilogger.svg)](https://travis-ci.org/deguss/rpilogger)
 ================
 
 Open source data logger for a Raspberry Pi
