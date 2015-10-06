@@ -357,10 +357,10 @@ if __name__ == "__main__":
             time.sleep(60) #wait upload to finish
             pss = subprocess.Popen(["ssh "+_REMOTE+" 'du -s lemi-data/"+remf+"'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
             output, errors = pss.communicate()
-            size_remote=int(output.split("  ")[0])
+            size_remote=int(output.split(" ")[0])
 
             ss=subprocess.check_output(['du', '-s', dqdir]) 
-            size_local=int(ss.split("   ")[0])
+            size_local=int(ss.split(" ")[0])
 
             if (size_local == size_remote):
                 pr = subprocess.Popen(["rm -r "+dqdir],stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
