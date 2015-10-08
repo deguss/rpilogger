@@ -53,6 +53,8 @@ function test_proc($name,$desc=''){
         }  
     </script>
     <!-- script type="text/javascript" src="jquery-2.1.3.js"></script--> 
+    <script type="text/javascript" src="jquery-2.1.4.min.js"></script>
+
     <script type="text/javascript">
       function add(text){
         var tBox = document.getElementById("tBox");
@@ -125,7 +127,6 @@ function test_proc($name,$desc=''){
 </form></div>
 <hr />
 
-<!-- script type="text/javascript" src="jquery-2.1.4.min.js"></script>
 <script type="text/javascript"> 
     function loadpage(clicked_id){
         if (clicked_id =="datasetview"){
@@ -135,7 +136,6 @@ function test_proc($name,$desc=''){
     }
 </script>
 <div id="phdataset">click view dataset</div>
-<button id="datasetview" type="button" onclick="loadpage(this.id)">view dataset</button-->
 <input type="button" class="button" onclick="window.open('view_dataset.php'); return false;" value="view dataset" />
 
 
