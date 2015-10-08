@@ -6,6 +6,7 @@
 /etc/watchdog.conf
 /etc/modprobe.d/watchdog.conf
 /etc/modprobe.d/i2c.conf
+/etc/modprobe.d/raspi-blacklist.conf
 /etc/fail2ban/fail2ban.conf
 /etc/fail2ban/jail.conf
 /etc/lighttpd/lighttpd.conf

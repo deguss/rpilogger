@@ -59,7 +59,7 @@ fi
 
 curr=$(date +"until_%Y-%m-%dT%H%M%S.txt")
 
-mkdir log
+mkdir -p log
 chown pi:pi log
 cp rpi.log log/$curr
 chown pi:pi log/$curr
