@@ -89,7 +89,7 @@ menubar_visible=1
 free_space=1
 horizontal_split=0
 vertical_equal=1
-left_panel_size=42
+left_panel_size=40
 horizontal_equal=1
 top_panel_size=1
 
@@ -98,7 +98,7 @@ timeformat_recent=%b %e %H:%M
 timeformat_old=%b %e  %Y
 ftp_proxy_host=gate
 ftpfs_password=anonymous@
-display_codepage=UTF-8
+display_codepage=ASCII
 source_codepage=Other_8_bit
 autodetect_codeset=
 clipboard_store=
