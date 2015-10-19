@@ -61,6 +61,7 @@ struct tm *pt1;
 FILE *fp_log; 
 
 #define LOGFILE "ads.log"
+#define LOGDIR "../log"
 #define CONFIGFILE "daq.cfg"
 #define FILELOCK "/var/run/ads.pid"
 #define USER "pi"

@@ -247,6 +247,8 @@ int main(int argc, char * argv[]){
     dst.t1.tv_sec=0;
     dst.t2.tv_sec=0;
     int nodaemon=0;
+    long lli=1;
+    long *uid=&lli, *gid=&lli;    
     
     pid = getpid();
     sprintf(path, "/proc/%d/exe", pid);
@@ -254,11 +256,14 @@ int main(int argc, char * argv[]){
         perror("readlink");
         exit_all(-1);
     }
-    else {
-        ppath=dirname(dest);
-        //printf("Executable's location: %s\n", ppath);
-        sprintf(logfile,"%s/%s",ppath,LOGFILE);        
-    }     
+    ppath=dirname(dest);
+    //printf("Executable's location: %s\n", ppath);
+    sprintf(logfile,"%s/%s",ppath,LOGDIR);
+    test_mkdir(LOGDIR);
+    get_uid_gid(user, uid, gid);
+    chown(logfile, *uid, *gid);
+    sprintf(logfile,"%s/%s",logfile,LOGFILE);        
+         
      
     if (argc>1){
         if (!strcmp(argv[1],"nodaemon") || !strcmp(argv[1],"-nodaemon") ||
@@ -312,8 +317,6 @@ int main(int argc, char * argv[]){
         setvbuf(fp_log, NULL, _IOLBF, 1024); // line buffering
         dup2(fileno(fp_log), fileno(stderr)); //redirect stderr to file
     }
-    long li=1;
-    long *uid=&li, *gid=&li;
     get_uid_gid(user, uid, gid);
     chown(logfile, *uid, *gid);
     chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

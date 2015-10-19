@@ -44,6 +44,7 @@ help:
 clean: 
 	@rm -r -f build
 	@rm -r -f debug
+	@rm -r -f log
 	@echo "clean done"
 		
 all: $(OBJECTS)

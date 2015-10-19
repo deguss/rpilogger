@@ -1,5 +1,6 @@
 # m h  dom mon dow   command
 MAILTO="" 
+SHELL=/bin/bash
 */2 * * * * /home/pi/rpilogger/checker.sh >> /home/pi/rpilogger/checker.log 2>&1
 ### optional (LCD status display) ###
 #* * * * * /home/pi/daq/lcdw.py > /home/pi/daq/lcdw.log 2>&1 

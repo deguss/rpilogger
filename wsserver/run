@@ -1,4 +1,0 @@
-#!/bin/bash
-PATH=/usr/local/bin:/usr/bin:/bin
-cd /home/pi/wsserver
-exec ./tailf-server.py
