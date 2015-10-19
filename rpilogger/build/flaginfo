@@ -1,1 +1,0 @@
-gcc  -D CFG_ADC1=0x49  -D CFG_ADC2=0x48 -D CFG_SEQ1_ADC1=ADS_CONF_MUX_D_01 -D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01 -lrt -lnetcdf -lm -lpthread -Wall -Wfatal-errors -Wunused -o build/ads src/main_2.c src/i2c.c src/inifile.c src/filelock.c src/iniparser.c src/dictionary.c
