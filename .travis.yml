@@ -5,13 +5,12 @@ compiler:
  - gcc
 before_install:
  # remove binary
- - rm rpilogger/ads
+ - cd rpilogger
+ - make clean
  # Install necessary packages from apt-get
  - sudo apt-get install netcdf-bin libnetcdf-dev
 script:
- - cd rpilogger
- #- make -DCMAKE_BUILD_TYPE=Debug -DACADO_WITH_TESTING=ON ..
- - make ads
+ - make all
 after_success:
  # Deploy the source code
  #- cd ..
