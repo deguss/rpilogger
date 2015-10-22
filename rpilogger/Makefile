@@ -1,6 +1,6 @@
 # config I2C addresses
 # valid settings: 0x48, 0x49, 0x4A, 0x4B
-PREPROC+=-D CFG_ADC1=0x49 
+PREPROC+=-D CFG_ADC1=0x49
 PREPROC+=-D CFG_ADC2=0x48
 
 # config sampling sequence
@@ -22,7 +22,7 @@ VPATH:=src
 TARGET:=ads
 CC:=gcc
 CCFLAGS:=-std=gnu99 -O3
-WFLAGS:=-Wall -Wfatal-errors -Wunused
+WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
 LDFLAGS:=-lrt -lnetcdf -lm -lpthread
 OBJECTS:=main_2.c i2c.c inifile.c filelock.c iniparser.c dictionary.c
 

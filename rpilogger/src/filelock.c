@@ -56,7 +56,7 @@ void filelock(const char *filelock) {
         pid = getpid();
         sprintf(chpid,"%ld",(long)(pid));
         printf("will acquire new filelock for PID=%s\n",chpid);
-        if (write(fd,chpid,strlen(chpid)) != strlen(chpid)){
+        if ((uint)write(fd,chpid,strlen(chpid)) != strlen(chpid)){
             close(fd);
             perror("failed to write to filelock");
             exit(1);
@@ -74,7 +74,7 @@ void get_uid_gid(const char *user, long *uid, long *gid){
     struct passwd pwd;
     struct passwd *result;
     char *buf;
-    size_t bufsize;
+    int bufsize;
     int s;
 
 

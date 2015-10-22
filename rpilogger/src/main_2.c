@@ -6,9 +6,10 @@
 // check /run/ads.pid ???
 // TODO if sampling rate 1/300 what is in 1-minute file???
  
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------
 void exit_all(int sig) { //Ctrl+C
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------
+    sig=sig+1; //dummy operation, however parameter needed!
     done=1;
     pthread_cancel(p_thread);
 //  PQfinish(pg_conn);
@@ -33,7 +34,7 @@ void ISRSamplingTimer(int sig) { //each 1/sps
         clock_gettime(CLOCK_REALTIME, &dst.t1);
     }
 
-    for (i=0;i<4;i++){
+    for (i=0;i<CFG_NR_CH;i++){
         if (fabs(dst.data[dst.it][i]) > overvoltage){
             ov[i]++;
             if (ov[i] > 10){ 
@@ -42,12 +43,31 @@ void ISRSamplingTimer(int sig) { //each 1/sps
             }
         }
     }
-    if (auto_pga)
-        adjust_pga(dst.it);
 
     if (err > -1)
         printf("WARN: Overvoltage on ch%i! /ch1=%.0f, ch2=%.0f, ch3=%.0f ch4=%.0f/\n",err,dst.data[dst.it][0],dst.data[dst.it][1],dst.data[dst.it][2],dst.data[dst.it][3]);
-
+        
+    if (auto_pga)
+        adjust_pga(dst.it);
+        
+    if (nodaemon){  //if started in debug mode (flag -nodaemon) additional output will be printed
+        static int cnt;
+        if (++cnt == (int)sps){
+            printf("debug: ch1=%+5.0f",dst.data[dst.it][0]);
+            #if (CFG_NR_CH > 1)
+                printf(", ch2=%+5.0f" , dst.data[dst.it][1]); 
+            #endif
+            #if (CFG_NR_CH > 2)
+                printf(", ch3=%+5.0f" , dst.data[dst.it][2]); 
+            #endif                
+            #if (CFG_NR_CH > 3)
+                printf(", ch4=%+5.0f" , dst.data[dst.it][3]); 
+            #endif                            
+            printf("\n");
+            cnt=0;
+        }
+        
+    }
 
     dst.it++;
     
@@ -246,7 +266,6 @@ int main(int argc, char * argv[]){
     char logfile[200];
     dst.t1.tv_sec=0;
     dst.t2.tv_sec=0;
-    int nodaemon=0;
     long lli=1;
     long *uid=&lli, *gid=&lli;    
     
@@ -274,7 +293,7 @@ int main(int argc, char * argv[]){
             print_logo();
             printf("usage: \n");
             printf("    ads                 normal usage (daemonized)\n");
-            printf("    ads -nodaemon       debug mode (not daemonizing)\n");
+            printf("    ads -nodaemon       debug mode (not daemonizing, more output)\n");
             printf("\n");
             printf("note:\n");
             printf("    currently you must invoke ads as root!\n\n");
@@ -414,7 +433,23 @@ int main(int argc, char * argv[]){
     }
     else
         printf("Timer init succeeded. Interval %ld.%06lds set!\n",new.it_interval.tv_sec, new.it_interval.tv_usec);
+    
 
+    printf("Channel assignment:\n\tch1=[ADC:%#04x]:",CFG_ADC1);
+    CFG_SEQ_PRINTER(CFG_SEQ1_ADC1);
+    #if (CFG_NR_CH > 1)
+        printf("\tch2=[ADC:%#04x]:",CFG_ADC2);
+        CFG_SEQ_PRINTER(CFG_SEQ2_ADC2);
+    #endif
+    #if (CFG_NR_CH > 2)
+        printf("\tch3=[ADC:%#04x]:",CFG_ADC1);
+        CFG_SEQ_PRINTER(CFG_SEQ3_ADC1);
+    #endif                
+    #if (CFG_NR_CH > 3)
+        printf("\tch4=[ADC:%#04x]:",CFG_ADC2);
+        CFG_SEQ_PRINTER(CFG_SEQ4_ADC2);
+    #endif   
+    
     /* nopoll client init
     ctx = nopoll_ctx_new ();
     if (! ctx) {

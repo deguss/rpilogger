@@ -37,7 +37,7 @@
 //--------------- DEFINES and VARIABLES --------------------------------
 
 // --- global variables
-int done=0, init=1, pga_uf=0;
+int done=0, init=1, pga_uf=0, nodaemon=0;
 int SPSc, spsadc, sampl, piter;
 float sps;
 char datafiledir[200];
@@ -48,7 +48,7 @@ char i2c_interface[100];
 #define MAX_SAMPL 600*60
 
 struct data_struct {
-    float data[2*MAX_SAMPL][4];
+    float data[2*MAX_SAMPL][CFG_NR_CH];
     struct timespec t1;
     struct timespec t2;
     int it;

@@ -1,5 +1,6 @@
 void test_mkdir(char *dirname);
-void* thread_datastore(void*);
+void *thread_datastore(void * p);
+
 void saveit(double g);
 off_t fsize(char *);
 
@@ -11,8 +12,10 @@ pthread_attr_t p_attr;
 //extern void get_uid_gid(const char *user, long *uid, long *gid);
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 //--------------------------------------------------------------------------------------------------
-void* thread_datastore(void *void_p){ 
+void *thread_datastore(void * p){ 
 //--------------------------------------------------------------------------------------------------
     double g;
     int rc;
@@ -49,7 +52,7 @@ void* thread_datastore(void *void_p){
     pthread_mutex_unlock(&a_mutex);
     pthread_exit(NULL);
 }
-
+#pragma GCC diagnostic pop
 
 //----------------------------------------------------------------------
 void saveit(double g){
@@ -240,7 +243,7 @@ void test_mkdir(char *dirname){
 //--------------------------------------------------------------------------------------------------
     struct stat st = {0};
     
-    int i;
+    uint i;
     char tmp[250];
     for(i=1; i<=strlen(dirname); i++){
         if(dirname[i]=='/' || i==strlen(dirname)){
