@@ -450,21 +450,7 @@ int main(int argc, char * argv[]){
         CFG_SEQ_PRINTER(CFG_SEQ4_ADC2);
     #endif   
     
-    /* nopoll client init
-    ctx = nopoll_ctx_new ();
-    if (! ctx) {
-        printf("Error creating nopoll context!\n"); 
-        return nopoll_false; 
-    }
 
-    if (websocket){
-        conn = nopoll_conn_new (ctx, "geodata.ggki.hu", "50500", NULL, NULL, NULL, NULL);
-        if (! nopoll_conn_is_ok (conn)) {
-            printf("Error connecting to websocket server!\n"); 
-            exit_all(-1);
-        }
-    }
-    */
     printf("\n");
     
         

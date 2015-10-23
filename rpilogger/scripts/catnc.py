@@ -3,13 +3,15 @@ import datetime, os, sys, stat, subprocess, re, shutil, time
 import select
 import numpy
 import netcdf
-# ------- SETUP --------------------
-_LOCATION_IN = "/home/pi/data/" # define global variable as "protected" - begins with _
-_LOCATION_OUT = "/home/pi/dp/"
-_REMOTE = "pid@aero.nck.ggki.hu"
-_DEFAULT_LEN = 24*60
-_FILE_SECS = 60.0
-# ---------------------------------
+import ConfigParser
+
+config = ConfigParser.ConfigParser()
+config.readfp(open(r'catnc.conf'))
+_LOCATION_IN = config.get('default', '_LOCATION_IN')
+_LOCATION_OUT = config.get('default', '_LOCATION_OUT')
+_DEFAULT_LEN = config.get('default', '_DEFAULT_LEN')
+_REMOTE = config.get('default', '_REMOTE')
+
 d_c = numpy.zeros(30000*_DEFAULT_LEN+30000,dtype='float32') #sure < sys.maxint
 d_d = numpy.zeros(30000*_DEFAULT_LEN+30000,dtype='float32')
 processed=[]
@@ -79,7 +81,7 @@ def concatenate(daydir,resdir):
                 sampl = fid.variables['ch3'].size #30000
                 units = fid.variables['ch3'].units #mV
                 print "first file: %s has %d samples (%d seconds at %d Hz)" % (f, sampl, sampl/sps, sps)
-                if ((processed[0]-dy).total_seconds() < _FILE_SECS): # if right after midnight 
+                if ((processed[0]-dy).total_seconds() < 60.0): # if right after midnight 
                     dz = dy-datetime.timedelta(days=1)  #the day before
                     dzt = dz.strftime('%Y/%m/%d/')
                     dzdir = os.path.join(_LOCATION_IN,dzt)
@@ -89,9 +91,9 @@ def concatenate(daydir,resdir):
                         filep = sorted(os.listdir(dzdir))[-1]
                         fp_st = datetime.datetime.strptime(dzt+filep,"%Y/%m/%d/%H%M%S.%f.nc")
                         oldd_s = datetime.timedelta.total_seconds(dy-fp_st)
-                        if (oldd_s < _FILE_SECS): #if file covers midnight
+                        if (oldd_s < 60.0): #if file covers midnight
                             fp_y=os.path.join(_LOCATION_IN,dzt+filep)
-                            od_s = _FILE_SECS - oldd_s
+                            od_s = 60.0 - oldd_s
                             print "file of day before (%s) contains %.4f seconds of current day" % (dzt+filep,od_s)
                             try:
                                 fp = netcdf.Dataset(fp_y, 'r')
@@ -133,16 +135,16 @@ def concatenate(daydir,resdir):
                     if (len(processed)>2): #ignore first interval due to its possibly bigger range
                         time_delta = processed[-1] - processed[-2]
                         differences = numpy.hstack((differences, time_delta.total_seconds()))
-                        m=int(numpy.round((differences[-1]-_FILE_SECS)*sps))
+                        m=int(numpy.round((differences[-1]-60.0)*sps))
                         if (m != 0):
                             if (m > 0):
                                 print "WARN: %3d samples are missing. inserted %d*NaN" % (m,m)
                                 print "\t %s" % (processed[-2].strftime("%H:%M:%S.%f"))
                                 print "\t %s" % (processed[-1].strftime("%H:%M:%S.%f"))
-                                print "   diff: %10.4f seconds" % (differences[-1]-_FILE_SECS)
+                                print "   diff: %10.4f seconds" % (differences[-1]-60.0)
                                 if (processed[-1] >= d_lim): # if more files are missing so that next hour is also rare
                                     time_delta = d_lim - processed[-2]
-                                    m=int(numpy.round((time_delta.total_seconds()-_FILE_SECS)*sps))
+                                    m=int(numpy.round((time_delta.total_seconds()-60.0)*sps))
                                     print "WARN: even more files are missing\n will insert only %d*NaN (%10.4f secs) and skip some files" % (m,(float)(m)/sps)
                                     d_ins = numpy.empty((m))
                                     d_ins[:] = numpy.NAN
@@ -177,11 +179,11 @@ def concatenate(daydir,resdir):
                                 print "WARN: files to dense! %d samples seems to be to much before %s" % (m, f)
                                 print "\t %s" % (processed[-2].strftime("%H:%M:%S.%f"))
                                 print "\t %s" % (processed[-1].strftime("%H:%M:%S.%f"))
-                                print "   diff: %10.4f seconds" % (differences[-1]-_FILE_SECS)
+                                print "   diff: %10.4f seconds" % (differences[-1]-60.0)
                     #check if file not too long
                     if (processed[-1] < d_lim): # present file yet in batch
                         rs = (d_lim - processed[-1]).total_seconds()
-                        if (rs < _FILE_SECS): #however if it is the last one, which needs to be truncated
+                        if (rs < 60.0): #however if it is the last one, which needs to be truncated
                             si = int(numpy.round(rs * sps))
                             d_c[d_ix:d_ix+si] = fid2.variables['ch3'][:si]
                             d_d[d_ix:d_ix+si] = fid2.variables['ch4'][:si]

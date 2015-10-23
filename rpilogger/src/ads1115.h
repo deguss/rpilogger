@@ -33,6 +33,10 @@ const float overvoltage=5000.0;
  #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
   #define CFG_NR_CH (2)
  #endif 
+ #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
+  #error "Not possible to sample 3 channels using 2 ADC-s. Define 2 or 4!"
+ #endif  
+ 
 #else //one ADC in use
  #if defined(CFG_SEQ1_ADC1) && !defined(CFG_SEQ2_ADC2) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
   #define CFG_NR_CH (1)
