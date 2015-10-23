@@ -6,14 +6,31 @@ import netcdf
 import ConfigParser
 
 config = ConfigParser.ConfigParser()
-config.readfp(open(r'catnc.conf'))
-_LOCATION_IN = config.get('default', '_LOCATION_IN')
-_LOCATION_OUT = config.get('default', '_LOCATION_OUT')
-_DEFAULT_LEN = config.get('default', '_DEFAULT_LEN')
-_REMOTE = config.get('default', '_REMOTE')
+config.readfp(open(r'/home/pi/rpilogger/catnc.conf'))
 
-d_c = numpy.zeros(30000*_DEFAULT_LEN+30000,dtype='float32') #sure < sys.maxint
-d_d = numpy.zeros(30000*_DEFAULT_LEN+30000,dtype='float32')
+if (config.has_option('default','LOCATION_IN')):
+    _LOCATION_IN = config.get('default', 'LOCATION_IN')
+else:
+    _LOCATION_IN = "/home/pi/data/tmp"
+
+if (config.has_option('default','LOCATION_OUT')):
+    _LOCATION_OUT = config.get('default', 'LOCATION_OUT')
+else:
+    _LOCATION_OUT = "/home/pi/data/"
+
+if (config.has_option('default','REMOTE')):
+    _REMOTE = config.get('default', 'REMOTE')
+else:
+    _REMOTE = ""    
+
+
+_MINUTES_A_DAY = 24*60
+
+d_a = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32') #sure < sys.maxint
+d_b = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
+d_c = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
+d_d = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
+import pdb; pdb.set_trace()
 processed=[]
 differences=[]
 i_mode=""
@@ -51,8 +68,8 @@ def concatenate(daydir,resdir):
 
     
     files = [w for w in sorted(os.listdir(daydir))]
-    print "%d files found, will process %s" % (len(files), "all" if (lim==_DEFAULT_LEN) else str(lim))
-    if (len(files) < _DEFAULT_LEN):
+    print "%d files found, will process %s" % (len(files), "all" if (lim==_MINUTES_A_DAY) else str(lim))
+    if (len(files) < _MINUTES_A_DAY):
         print "files are missing. There should be 24*60=1440"
     if (i_mode): #interactive mode
         print "\t(press return (enter) to gently abort)"
@@ -267,16 +284,18 @@ def savebin(resdir, d_ix, start, stop, nans, sps, units):
             return -1
         else:
             print " %s written! Size: %s" % (resf, filesize(resf))
-            pss = subprocess.Popen(["ssh "+_REMOTE+" 'mkdir -p lemi-data/"+remf+"'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
-            output, errors = pss.communicate()
-            if (errors):
-                print "Could not create remote directory lemi-data/"+remf+" on server: "+_REMOTE+" !"
-                print "Check for ssh keys and permissions!"
-                print "No file copy (scp) possible"
-            else :
-                p = subprocess.Popen(["scp", resf, _REMOTE+":lemi-data/"+remf+resfile])
-            #import pdb; pdb.set_trace()
-            print " "
+
+            if (_REMOTE!=""):           
+                pss = subprocess.Popen(["ssh "+_REMOTE+" 'mkdir -p lemi-data/"+remf+"'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+                output, errors = pss.communicate()
+                if (errors):
+                    print "Could not create remote directory lemi-data/"+remf+" on server: "+_REMOTE+" !"
+                    print "Check for ssh keys and permissions!"
+                    print "No file copy (scp) possible"
+                else :
+                    p = subprocess.Popen(["scp", resf, _REMOTE+":lemi-data/"+remf+resfile])
+                #import pdb; pdb.set_trace()
+                print " "
             return 0
 
 
@@ -285,7 +304,7 @@ if __name__ == "__main__":
     # ./catnc.py 2015-03-17   --> interactive: processing the given date (also format 2015/03/17 works)
     # ./catnc.py 2015-03-17 34
     i_mode=""
-    lim=_DEFAULT_LEN
+    lim=_MINUTES_A_DAY
     if (len(sys.argv) > 1):
         try: # if first argument is limit
             lim=int(sys.argv[1])
@@ -300,17 +319,18 @@ if __name__ == "__main__":
             try: # second argument a limit?
                 lim=int(sys.argv[2])
             except (ValueError, IndexError):
-                lim=_DEFAULT_LEN
+                lim=_MINUTES_A_DAY
 
     #redirect stdout and stderr
     _catnc_logfile = os.path.join(_LOCATION_OUT,"catnc.log")
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # Unbuffer output
+    #import pdb; pdb.set_trace()    
     tee = subprocess.Popen(["tee", _catnc_logfile], stdin=subprocess.PIPE)
     os.dup2(tee.stdin.fileno(), sys.stdout.fileno())
     os.dup2(tee.stdin.fileno(), sys.stderr.fileno())
     
     print "starting %s " % ( ("for %s " %sys.argv[1]) if i_mode else "in non-interactive-mode")
-    if (lim!=_DEFAULT_LEN):
+    if (lim!=_MINUTES_A_DAY):
         print "debug mode active with limit=%d" % lim
     t1 = datetime.datetime.now()
     dy = i_mode
@@ -331,10 +351,6 @@ if __name__ == "__main__":
     mkdir(resdir)
     if os.listdir(resdir): 
         print "files possibly already concatenated. Directory %s exists." %(resdir)
-        if (i_mode): #interactive mode
-            if (raw_input("do you want to continue (y/n)?  ") == 'n'):
-                sys.exit(-1)
-
 
     rv = concatenate(daydir=daydir,resdir=resdir)
 
@@ -383,7 +399,9 @@ if __name__ == "__main__":
     print "\n"
     #import pdb; pdb.set_trace()
     shutil.copyfile(_catnc_logfile, os.path.join(resdir,"catnc.txt"))
-    p = subprocess.Popen(["scp", os.path.join(resdir,"catnc.txt"), _REMOTE+":lemi-data/"+dy.strftime('%Y/%m/%d/')+"catnc.txt"])
-    sts = os.waitpid(p.pid, 0)
-    sys.exit(rv)
+    if (_REMOTE!=""):
+        p = subprocess.Popen(["scp", os.path.join(resdir,"catnc.txt"), _REMOTE+":lemi-data/"+dy.strftime('%Y/%m/%d/')+"catnc.txt"])
+        sts = os.waitpid(p.pid, 0)
+        sys.exit(rv)
+
 

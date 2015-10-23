@@ -24,7 +24,7 @@ CC:=gcc
 CCFLAGS:=-std=gnu99 -O3
 WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
 LDFLAGS:=-lrt -lnetcdf -lm -lpthread
-OBJECTS:=main_2.c i2c.c inifile.c filelock.c iniparser.c dictionary.c
+OBJECTS:=main.c i2c.c inifile.c filelock.c iniparser.c dictionary.c
 
 user=$(shell whoami)
 ifeq ($(user),root)

@@ -1,10 +1,10 @@
 #!/bin/bash
-
 if (( $UID ))
 then 
     echo "not root!"
     exit -1
 fi
+PWD_=$(pwd)
 cd /home/pi/rpilogger
 mkdir -p log
 chown pi:pi log
@@ -32,24 +32,20 @@ then
             echo " [ERROR:ELL]"
             if [ "$(pgrep shutdown)" = "" ]; then
                 echo " action: scheduling reboot"
-                /sbin/shutdown -r +5 "checker.sh: reboot in 5min" &
+                /sbin/shutdown -r +10 "checker.sh: reboot in 10min" &
+                cd $PWD_
                 exit -1
             fi
         else
             if [ $(pgrep shutdown) ]; then
                 /sbin/shutdown -c
                 echo " shutdown cancelled"
+                cd $PWD_
                 exit 0
             else
-                if [ "$lsize" != "235KiB" ]; then
-                    echo " [ERROR:SIZE]"
-                    echo " action: restarting ads"
-                    pkill ^ads$
-                    sleep 1
-                else
-                    echo " [OK]"
-                    exit 0
-                fi
+                echo " [OK]"
+                cd $PWD_
+                exit 0
             fi
         fi
         
@@ -61,12 +57,16 @@ fi
 
 curr=$(date +"until_%Y-%m-%dT%H%M%S.txt")
 
-cp log/ads.log log/$curr
-chown pi:pi log/$curr
-build/ads &
+if [ -e log/ads.log ]; then 
+    cp log/ads.log log/$curr
+    chown pi:pi log/$curr    
+fi
+
+build/ads
 
 sleep 1
 
 echo $(date +"%Y/%m/%d %H:%M:%S.%4N") " (re)started with pid: $$ > log/$curr"
+cd $PWD_
 
 exit 0
