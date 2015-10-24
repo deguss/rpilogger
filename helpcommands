@@ -3,19 +3,19 @@
  c filename                # displays content of file (syntax highlighting)
  hostname -I               # shows local IP
  extip                     # shows external IP (ipecho.net)
- tail -f rpilogger/rpi.log # shows rpilogger's output
+ tail -f rpilogger/log/ads.log
+                           # shows data logger output live
  ntpq -p                   # checks network time protocol synchronization
- w                         # shows logged in users
  top                       # task manager / cpu monitoring
  pstree                    # shows running processes
  netstat -tulanp           # lists all active internet connections
- sudo lsof | grep TCP       
  sudo netstat -plant       # lists open ports
  lsof -p $(pgrep ads)      # lists open files of a process
  find / -name "string.c"   # locates file string.c
- ./catnc.py 2015-05-24 &> /dev/null & disown
-                           # runs concatenate script manually
  cat /proc/interrupts	   # view interrupts, CPU properities
  lsmod                     # list kernel modules loaded
+ git remote update         # check if datalogger is up-to-date
+ git pull                  # pull newest version (merging)
+ git status                # displays status of local files
 --------------------------------------------------------------------------
 

@@ -25,12 +25,12 @@ else:
 
 
 _MINUTES_A_DAY = 24*60
+_SAMPLES_A_MINUTE = 30000
 
-d_a = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32') #sure < sys.maxint
-d_b = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
-d_c = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
-d_d = numpy.zeros(30000*_MINUTES_A_DAY+30000,dtype='float32')
-import pdb; pdb.set_trace()
+d_a = numpy.zeros(_SAMPLES_A_MINUTE*60*2,dtype='float32') #sure < sys.maxint
+d_b = numpy.zeros(_SAMPLES_A_MINUTE*60*2,dtype='float32')
+d_c = numpy.zeros(_SAMPLES_A_MINUTE*60*2,dtype='float32')
+d_d = numpy.zeros(_SAMPLES_A_MINUTE*60*2,dtype='float32')
 processed=[]
 differences=[]
 i_mode=""
@@ -64,7 +64,7 @@ def mkdir(directory):
 
 
 def concatenate(daydir,resdir):
-    global d_c, d_d, processed, differences, i_mode
+    global d_a, d_b, d_c, d_d, processed, differences, i_mode
 
     
     files = [w for w in sorted(os.listdir(daydir))]
@@ -95,6 +95,7 @@ def concatenate(daydir,resdir):
             if (len(processed)==1):
                 start = getattr(fid,'start')
                 sps = getattr(fid,'sps') #500
+                import pdb; pdb.set_trace()                
                 sampl = fid.variables['ch3'].size #30000
                 units = fid.variables['ch3'].units #mV
                 print "first file: %s has %d samples (%d seconds at %d Hz)" % (f, sampl, sampl/sps, sps)

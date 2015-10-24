@@ -233,9 +233,14 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
             exit(EXIT_FAILURE);
         }
     #endif
-        
-    //close file
-    status = nc_close(ncid);
+
+    status = nc_sync(ncid); //ensure it is written to disk        
+    if (status != NC_NOERR){
+        logErrDate("savefile, nc_sync %s\nExit\n",nc_strerror(status));
+        exit(EXIT_FAILURE);
+    }
+    
+    status = nc_close(ncid); //close file
     if (status != NC_NOERR){
         logErrDate("savefile, nc_close %s\nExit\n",nc_strerror(status));
         exit(EXIT_FAILURE);
