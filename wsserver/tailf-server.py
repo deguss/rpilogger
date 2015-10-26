@@ -7,8 +7,8 @@ import sys
 
 PORT='50000'
 
-logs = ['/home/pi/rpilogger/rpi.log',
-		'/home/pi/dp/catnc.log']
+logs = ['/home/pi/rpilogger/log/ads.log',
+        '/home/pi/rpilogger/checker.log']
         #'/var/log/syslog',
         #'/var/log/daemon.log',
         #'/var/log/auth.log',
