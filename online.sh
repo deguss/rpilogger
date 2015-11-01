@@ -7,7 +7,7 @@ MAC=$(php -r "echo urlencode('$MAC');")
 STR="mac=""$MAC""&host=""$HOST""&ip=""$IP"
 
 echo $(date +"%Y/%m/%d %H:%M:%S"):
-curl -s --show-error -m 5 --data "$STR" $URL 
+curl --silent --show-error --max-time 30 --data "$STR" $URL 
 
 RES=$(netstat -tp 2>/dev/null | grep "s171.web-hosting.:21098")
 # usual answer: 
@@ -18,6 +18,6 @@ case "$RES" in
         ;;
     *)
         echo "[ERROR] no ssh tunnel established! Reconnect"
-        ssh -R 3000:localhost:22 openkhhr@opendatalogger.com -p 21098 -o ConnectTimeout=10 -f -N
+        ssh -R 3000:localhost:22 openkhhr@opendatalogger.com -p 21098 -o ConnectTimeout=30 -f -N
         ;;
 esac
