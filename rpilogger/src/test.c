@@ -8,6 +8,7 @@
 #include <time.h>
 #include <limits.h>
 #include <float.h>
+#include <math.h>
 #include <string.h>
 #include <libgen.h> //dirname
 #include <dirent.h> 
@@ -34,13 +35,14 @@ struct params{
 };
 
 int get_nc_params(const char *filename, struct params *par, int first);
-void get_nc_data(const char *filename, const struct params *par, float *bufpt);
+int get_nc_data(const char *file_in, const char *file_out, const struct params *par);
 int cmpfunc( const void *a, const void *b);
 int getSortedFileList(char *daystr);
 long int date_difference(struct tm *tm1, struct tm *tm2);
 void calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour );
+float standard_deviation(float *datap, int n);
 
-
+int mkdir_filename(const char *dir_name);
 //----------------------------------------------------------------------
 int get_nc_params(const char *filename, struct params *par, int first){
 //----------------------------------------------------------------------
@@ -120,9 +122,126 @@ int get_nc_params(const char *filename, struct params *par, int first){
 }
 
 //----------------------------------------------------------------------
-void get_nc_data(const char *filename, const struct params *par, float *bufpt){
+int get_nc_data(const char *file_in, const char *file_out, const struct params *par){
 //----------------------------------------------------------------------    
+    int status;
+    int ncid_in, ncid_out;
+    int varid;
+    int i;
     
+    status = nc_open(file_in, NC_NOWRITE, &ncid_in);
+    if (status != NC_NOERR){ //possible errors: NC_NOMEM, NC_EHDFERR, NC_EDIMMETA, NC_ENOCOMPOIND
+        logErrDate("%s: Could not open file %s to read! nc_open: %s\nExit\n",
+        __func__,file_in,nc_strerror(status));
+        return -1;
+    }
+
+
+    // ------------------ open file to write -----------------------------
+    status = nc_create(file_out, NC_CLOBBER|NC_NETCDF4, &ncid_out);
+    if (status != NC_NOERR){ //possible errors: NC_ENOMEM, NC_EHDFERR, NC_EFILEMETA
+        logErrDate("%s: Could not open file %s to write! nc_create: %s\nExit\n",
+        __func__,file_out,nc_strerror(status));
+        return -1;
+    }
+    
+    if (par->chnumber){
+        char varstr[]="ch1";
+        status = nc_inq_varid(ncid_in, varstr, &varid);
+        if (status != NC_NOERR){
+            logErrDate("%s: Could not find variable %s in %s! nc_inq_varid: %s\nExit\n",
+            __func__, varstr, file_in, nc_strerror(status));
+            return -1;
+        }
+
+        float *chp1 = calloc(par->length, sizeof(float));
+        if (chp1 == NULL){
+            logErrDate("%s: Could not allocate memory of size %d!\nExit\n",
+            __func__, par->length*(int)sizeof(float));
+            return -1;            
+        }       
+        
+        status = nc_get_var_float(ncid_in, varid, chp1);
+        if (status != NC_NOERR){
+            logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
+            __func__, varstr, file_in, nc_strerror(status));
+            return -1;
+        }
+        //printf("||%f, %f, %f, %f||\n",*(chp1), *(chp1+1), *(chp1+par->length-2), *(chp1+par->length-1));
+        standard_deviation(chp1,par->length);
+        mkdir_filename(file_out);
+        
+        int ch1_dim;       // dimension id
+        int ch1_id;        // variable id
+        size_t s1[1] = {0};
+        
+        // define dimensions 
+        status = nc_def_dim(ncid_out, varstr, par->length, &ch1_dim);
+        if (status != NC_NOERR){
+            logErrDate("%s: nc_def_dim param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            return -1;
+        }
+        // define variables
+        status = nc_def_var(ncid_out, varstr, NC_FLOAT, 1, &ch1_dim, &ch1_id);
+        if (status != NC_NOERR){
+            logErrDate("%s: nc_def_var param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            return -1;
+        } 
+        // assign per-variable attributes
+        status = nc_put_att_text(ncid_out, ch1_id, "units", 2, "mV");
+        if (status != NC_NOERR){
+            logErrDate("%s: nc_put_att_text param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            return -1;
+        }
+        
+        status = nc_enddef (ncid_out);    // leave define mode
+        
+        // assign variable data
+        for (i=0;i<par->length;i++){
+            s1[0]=i;
+            status = nc_put_var1_float(ncid_out, ch1_id, s1, (chp1+i));
+            if (status != NC_NOERR){//NC_EHDFERR, NC_ENOTVAR, NC_EINVALCOORDS, NC_EEDGE, NC_ERANGE, NC_EINDEFINE, NC_EBADID, NC_ECHAR, NC_ENOMEM, NC_EBADTYPE
+                logErrDate("%s, nc_put_var1_float param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+                return -1;
+            }
+        }
+        
+        status = nc_sync(ncid_out); //ensure it is written to disk        
+        if (status != NC_NOERR){
+            logErrDate("%s, nc_sync %s\nExit\n",__func__,nc_strerror(status));
+            return -1;
+        }
+        
+        status = nc_close(ncid_out); //close file
+        if (status != NC_NOERR){
+            logErrDate("%s, nc_close %s\nExit\n",__func__,nc_strerror(status));
+            return -1;
+        }
+
+
+        
+        
+        free(chp1);        
+    }
+    
+    nc_close(ncid_in);
+    return 0;
+}
+
+//----------------------------------------------------------------------
+float standard_deviation(float *datap, int n) {
+//----------------------------------------------------------------------
+    float mean=0.0, sum_deviation=0.0;
+    int i;
+    for(i=0; i<n; i++){
+        mean+=*(datap+i);
+    }
+    mean=mean/(long double)n;
+    for(i=0; i<n;++i){
+        sum_deviation+=(*(datap+i)-mean)*(*(datap+i)-mean);
+    }
+    printf("\tmean=%f, std_dev=%f\n",mean,sqrtf(sum_deviation/n));
+    return 0;
 }
 
 //----------------------------------------------------------------------
@@ -194,10 +313,6 @@ long int date_difference(struct tm *tm1, struct tm *tm2){
 //----------------------------------------------------------------------
 void calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour){
 //----------------------------------------------------------------------
-    if (hour==0){ //no argument was given
-        logErrDate("%s: argument +0 hours was given!\n",__func__);
-    }
-
     tp1h->tm_year = now->tm_year; 
     tp1h->tm_mon  = now->tm_mon;
     tp1h->tm_mday = now->tm_mday;
@@ -226,25 +341,33 @@ int main(int argc, char * argv[]){
     tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour, tp->tm_min, 
     tp->tm_sec, (filenames[0]+7*sizeof(char)));   //inclusive fractional sec
     
-    struct tm tp1h;
+    struct tm tp1h; //next full hour (hour file limit)
     calcNextFullHour(tp, &tp1h, 1);
     printf("in total %ld seconds to next full hour\n",date_difference(tp, &tp1h));
+    struct tm tp0h; //beginning of this hour (output file name)
+    calcNextFullHour(tp, &tp0h, 0);    
 
-    char fullpath[255];
+    char file_in[255];
+    char file_out[255];
     //open first file to check length, sps, number of channels ...
     struct params parM, parS;
-    sprintf(fullpath,"/home/pi/data/tmp/%s%s.nc",daystr,filenames[0]);
-    get_nc_params(fullpath, &parM, 1);
+    sprintf(file_in, "/home/pi/data/tmp/%s%s.nc",daystr,filenames[0]);
+    sprintf(file_out,"/home/pi/data/%s%04d-%02d-%02dT%02d.nc",daystr, 
+    tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, tp0h.tm_hour);
+    get_nc_params(file_in, &parM, 1);
 
-    //open all further files, assert parameters are identical
-    for(ind=1; date_difference(tp, &tp1h)>0; ind++){
+    printf("outfile: %s\n",file_out);
+    //open all further files (including the first), assert parameters are identical
+    for(ind=0; date_difference(tp, &tp1h)>0; ind++){
         tp=&times[ind];
-        sprintf(fullpath,"/home/pi/data/tmp/%s%s.nc",daystr,filenames[ind]);
-        get_nc_params(fullpath, &parS, 0);
-        printf("%2d %s\n",ind,fullpath);
+        sprintf(file_in,"/home/pi/data/tmp/%s%s.nc",daystr,filenames[ind]);
+        get_nc_params(file_in, &parS, 0);
+            printf("%2d %s\n",ind,file_in);
+        get_nc_data(file_in, file_out, &parS);
+        break;
     }
 
-    //get_nc_data(const int howmanyfiles, const struct params *par, float *bufpt);
+    
     
     
     
@@ -254,47 +377,30 @@ int main(int argc, char * argv[]){
     return 0;
 }
 
-//----------------------------------------------------------------------
-int main2(int argc, char * argv[]){
-//----------------------------------------------------------------------
-    int status;
-    int ncid;
-    char filen[500];
-    int nvarsp;
-    int dimid;
-    size_t lenp;
+//--------------------------------------------------------------------------------------------------
+int mkdir_filename(const char *dir_name){
+//--------------------------------------------------------------------------------------------------
+    struct stat st = {0};
+    char dirname[255];
+    strcpy(dirname,dir_name);
     
-    sprintf(filen,"%s","/home/pi/data/tmp/2015/10/23/235844.5137.nc");
-    
-    status = nc_open(filen, NC_NOWRITE, &ncid);
-    if (status != NC_NOERR){ //possible errors: NC_NOMEM, NC_EHDFERR, NC_EDIMMETA, NC_ENOCOMPOIND
-        logErrDate("savefile: Could not open file %s to write! nc_create: %s\nExit\n",filen,nc_strerror(status));
-        exit(EXIT_FAILURE);
-    }
-    printf("%s\nfile open %s (id: %i)\n",nc_strerror(status),filen,ncid);
-    
-    status = nc_inq_nvars(ncid, &nvarsp);
-    if (status != NC_NOERR){
-        logErrDate("savefile: nc_inq_nvars: %s\nExit\n",nc_strerror(status));
-        exit(EXIT_FAILURE);
-    }
-    printf("%d vars\n",nvarsp);
-    
-    status = nc_inq_dimid(ncid, "ch1", &dimid);
-    if (status != NC_NOERR){
-        logErrDate("savefile: nc_inq_dim: %s\nExit\n",nc_strerror(status));
-        exit(EXIT_FAILURE);
-    }
-    
-    status = nc_inq_dimlen(ncid, dimid, &lenp);
-    if (status != NC_NOERR){
-        logErrDate("savefile: nc_inq_dimlen: %s\nExit\n",nc_strerror(status));
-        exit(EXIT_FAILURE);
-    }
-    printf("%d elements each\n",lenp);
-    
-    
-    nc_close(ncid);
-     
+    uint h=1,i,j=0;
+    char tmp[255];
+    for(i=1; i<=strlen(dirname); i++){
+        if(dirname[i]=='.')
+            j=i;
+        if(dirname[i]=='/' || (i==strlen(dirname) && j<h) ){
+            h=i;
+            snprintf(tmp, (size_t)(i+1), dirname);
+            if (stat(tmp, &st) == -1) { //if dir does not exists, try to create it
+                printf("Creating directory %s\n",tmp);
+                if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXG | S_IXOTH)){
+                    logErrDate("%s: could not create directory %s!\n",__func__,tmp);
+                    //exit_all(-1);
+                    return -1;
+                }
+            }       
+        }
+    } 
     return 0;
 }

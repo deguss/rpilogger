@@ -1,6 +1,8 @@
 MAILTO=""
 SHELL=/bin/bash
 # m h  dom mon dow   command
-# 30 2 * * * /usr/bin/nice -n 10 /home/pi/catnc.py 2>1 /dev/null
-@reboot /bin/sleep 60 && /home/pi/online.sh 2>1 /dev/null
-59 * * * * /home/pi/online.sh 2>1 /dev/null
+# 30 2 * * * /usr/bin/nice -n 10 /home/pi/catnc.py 2>&1 /dev/null
+@reboot /bin/sleep 60 && /home/pi/online.sh >> /home/pi/online.log 2>&1
+59 * * * *               /home/pi/online.sh >> /home/pi/online.log 2>&1
+@reboot /bin/sleep 50 && /home/pi/wsserver/tailf-server.py 2>&1 /dev/null &
+

@@ -14,6 +14,8 @@
  find / -name "string.c"   # locates file string.c
  cat /proc/interrupts	   # view interrupts, CPU properities
  lsmod                     # list kernel modules loaded
+ sudo ppstest /dev/pps0    # GPS puls per second test tool
+ cgps -s                   # GPS monitor toools
  git remote update         # check if datalogger is up-to-date
  git pull                  # pull newest version (merging)
  git status                # displays status of local files
