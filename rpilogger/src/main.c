@@ -273,7 +273,7 @@ int main(int argc, char * argv[]){
     ppath=dirname(dest);
     //printf("Executable's location: %s\n", ppath);
     sprintf(logfile,"%s/../%s",ppath,LOGDIR);
-    test_mkdir(LOGDIR);
+    mkdir_filename(LOGDIR);
     get_uid_gid(user, uid, gid);
     chown(logfile, *uid, *gid);
     sprintf(logfile,"%s/%s",logfile,LOGFILE);        
@@ -342,6 +342,7 @@ int main(int argc, char * argv[]){
     logErrDate("Main thread started with pid: %ld\n",(long)pid);
     
     print_logo();
+    
 
     signal(SIGINT, exit_all); //e.g. Ctrl+c
     signal(SIGTERM, exit_all); //e.g. pkill

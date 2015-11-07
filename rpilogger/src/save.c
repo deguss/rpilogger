@@ -1,4 +1,4 @@
-void test_mkdir(char *dirname);
+int mkdir_filename(const char *dir_name);
 void *thread_datastore(void * p);
 
 void saveit(double g);
@@ -60,27 +60,20 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
     static struct tm t1;
     int i;
     char str[500];
-    char dirn[100], fn[40], filen[150];
+    char fn[255];
     int  ncid;  // netCDF id    
     int status;
     float d[MAX_SAMPL];
     static long filesize_c;
     long filesize;
     
-    t1 = *gmtime(&dst.t1.tv_sec); //first sample of batch
-    sprintf(dirn,"%s/tmp/%d",datafiledir,t1.tm_year + 1900); // e.g. [/home/pi/data]/tmp
-    test_mkdir(dirn);           // 2015
-    sprintf(dirn,"%s/%02d", dirn, t1.tm_mon + 1);
-    test_mkdir(dirn);           // 12
-    sprintf(dirn,"%s/%02d", dirn, t1.tm_mday); 
-    test_mkdir(dirn);           // 05
-    sprintf(fn,"%02d%02d%02d.%04ld",t1.tm_hour,t1.tm_min,t1.tm_sec, dst.t1.tv_nsec/100000L); //file name only
-
+    //t1 = *gmtime(&dst.t1.tv_sec); //first sample of batch
+    sprintf(fn,"%s/tmp/%ld.nc",datafiledir,dst.t1.tv_sec);
+    mkdir_filename(fn);
      
-    sprintf(filen,"%s/%s.nc",dirn,fn);                              //path to BINARY file (.nc)
-    status = nc_create(filen, NC_CLOBBER|NC_NETCDF4, &ncid);
+    status = nc_create(fn, NC_CLOBBER|NC_NETCDF4, &ncid);
     if (status != NC_NOERR){ //possible errors: NC_ENOMEM, NC_EHDFERR, NC_EFILEMETA
-        logErrDate("savefile: Could not open file %s to write! nc_create: %s\nExit\n",filen,nc_strerror(status));
+        logErrDate("savefile: Could not open file %s to write! nc_create: %s\nExit\n",fn,nc_strerror(status));
         exit(EXIT_FAILURE);
     }
     
@@ -150,7 +143,7 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
 
 
     // assign global attributes
-    sprintf(str,"%d-%02d-%02d %02d:%02d:%02d.%04ld",t1.tm_year+1900,t1.tm_mon+1, t1.tm_mday, t1.tm_hour,t1.tm_min,t1.tm_sec, dst.t1.tv_nsec/100000L);
+    sprintf(str,"%d-%02d-%02d %02d:%02d:%02d.%06ld",t1.tm_year+1900,t1.tm_mon+1, t1.tm_mday, t1.tm_hour,t1.tm_min,t1.tm_sec, dst.t1.tv_nsec/1000L);
     status = nc_put_att_text(ncid, NC_GLOBAL, "start", strlen(str), str);
     if (status != NC_NOERR){// NC_EINVAL, NC_ENOTVAR, NC_EBADTYPE, NC_ENOMEM, NC_EFILLVALUE
         logErrDate("savefile, nc_put_att_text param start: %s\nExit\n",nc_strerror(status));
@@ -247,12 +240,12 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
     }
         //printf("%d-%02d-%02d %02d:%02d:%02d.%04ld  %.06g\n",t1.tm_year+1900,t1.tm_mon+1, t1.tm_mday, t1.tm_hour, t1.tm_min, t1.tm_sec, dst.ts[piter].tv_nsec/100000L, g/1E9);
     if (dst.t2.tv_sec == 0){
-        filesize_c=(unsigned long)fsize(filen);
-        printf("File written: %s. Samples: 2*%i.   (first file)      Size: %ldKiB\n",fn, sampl,(filesize_c)/1024);
+        filesize_c=(unsigned long)fsize(fn);
+        printf("File written: %s.   (first file)        Size: %ldKiB\n",fn, (filesize_c)/1024);
     }
     else {
-        filesize = (unsigned long)fsize(filen);
-        printf("File written: %s. Samples: 2*%i. Ellapsed: %.4lfs. Size: %ldKiB\n",fn, sampl,g/1E9,(filesize)/1024);
+        filesize = (unsigned long)fsize(fn);
+        printf("File written: %s. Ellapsed: %.6lfs. Size: %ldKiB\n",fn, g/1E9,(filesize)/1024);
         if (filesize != filesize_c){
             logErrDate("Error! Fize size not consistent!\nExit\n");
             exit(EXIT_FAILURE);
@@ -264,25 +257,31 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
 
 
 //--------------------------------------------------------------------------------------------------
-void test_mkdir(char *dirname){
+int mkdir_filename(const char *dir_name){
 //--------------------------------------------------------------------------------------------------
     struct stat st = {0};
+    char dirname[255];
+    strcpy(dirname,dir_name);
     
-    uint i;
-    char tmp[250];
+    uint h=1,i,j=0;
+    char tmp[255];
     for(i=1; i<=strlen(dirname); i++){
-        if(dirname[i]=='/' || i==strlen(dirname)){
+        if(dirname[i]=='.')
+            j=i;
+        if(dirname[i]=='/' || (i==strlen(dirname) && j<h) ){
+            h=i;
             snprintf(tmp, (size_t)(i+1), dirname);
             if (stat(tmp, &st) == -1) { //if dir does not exists, try to create it
                 printf("Creating directory %s\n",tmp);
                 if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXG | S_IXOTH)){
-                    logErrDate("Could not create directory %s!\n",tmp);
-                    exit_all(-1);
+                    logErrDate("%s: could not create directory %s!\n",__func__,tmp);
+                    //exit_all(-1);
+                    return -1;
                 }
-            }            
-            
+            }       
         }
     } 
+    return 0;
 }
 
 //--------------------------------------------------------------------------------------------------
