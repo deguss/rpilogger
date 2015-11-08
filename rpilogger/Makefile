@@ -13,6 +13,7 @@ PREPROC+=-D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01
 
 
 
+
 ### ------------  Makefile created by Daniel Piri  ---------------   ###
 ###                  http://github.com/deguss                        ###
 ###                  http://opendatalogger.com                       ###
@@ -24,7 +25,7 @@ CC:=gcc
 CCFLAGS:=-std=gnu99 -O3
 WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
 LDFLAGS:=-lrt -lnetcdf -lm -lpthread
-OBJECTS:=main.c i2c.c inifile.c filelock.c iniparser.c dictionary.c
+OBJECTS:=main.c i2c.c system.c inifile.c filelock.c iniparser.c dictionary.c
 
 now=$(shell date "+%F %T %z")
 user=$(shell whoami)

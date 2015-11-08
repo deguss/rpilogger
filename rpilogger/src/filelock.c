@@ -1,18 +1,27 @@
+/**
+ *   @file    filelock.c
+ *   @author  Daniel Piri
+ *   @brief   Prevents application running multiple instances.
+ *   
+ *   This software is licensed under the GNU General Public License.
+ *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
+ */
+ 
 #include "filelock.h"
 
-//----------------------------------------------------------------------
-void deletefile(const char *fl){
-//----------------------------------------------------------------------
+
+void deletefile(const char *fl)
+{
     if (unlink(fl)==-1){
         perror("failed to remove filelock");
-        exit(1);                
+        exit(EXIT_FAILURE);                
     }
     printf("invalid filelock found, deleted!\n");    
 }
 
-//----------------------------------------------------------------------
-void filelock(const char *filelock) {
-//----------------------------------------------------------------------
+
+void filelock(const char *filelock) 
+{
     pid_t pid;
     int fd;
     //const char filelock[]="/var/run/ads.pid";
@@ -68,9 +77,8 @@ void filelock(const char *filelock) {
 }
 
 
-//----------------------------------------------------------------------
-void get_uid_gid(const char *user, long *uid, long *gid){
-//----------------------------------------------------------------------
+void get_uid_gid(const char *user, long *uid, long *gid)
+{
     struct passwd pwd;
     struct passwd *result;
     char *buf;

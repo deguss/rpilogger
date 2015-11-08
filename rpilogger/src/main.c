@@ -1,24 +1,22 @@
+/**
+ *   @file    main.c
+ *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com
+ *   @brief   main file
+ *   
+ *   This software is licensed under the GNU General Public License.
+ *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
+ */
 #include "main.h"
 #include "save.c"
 
 // TODO if sampling rate lower than 1/60 what is in 1-minute file???
- 
-//----------------------------------------------------------------------
-void exit_all(int sig) { //Ctrl+C
-//----------------------------------------------------------------------
-    sig=sig+1; //dummy operation, however needed to supress warn
-    done=1;
-    pthread_cancel(p_thread);
-    printf("\n\n");
-    logErrDate("Termination signal received! Will now exit.\n\n");
-    fflush(stdout);
-    fclose (fp_log);
-    exit(EXIT_FAILURE);
-}
 
-//----------------------------------------------------------------------
-void ISRSamplingTimer(int sig) { //each 1/sps
-//----------------------------------------------------------------------
+/* interrupt service routine
+ * performs the sampling each 1/sps
+ */
+void ISRSamplingTimer(int sig) 
+{ 
     int err = -1;
     static int ov[4]; 
     static int notfirst;
@@ -31,7 +29,7 @@ void ISRSamplingTimer(int sig) { //each 1/sps
     }    
     
     //sampling
-    getADC(dst.it);
+    getADC_ADS1115(dst.it);
 
     //overvoltage check 
     for (i=0;i<CFG_NR_CH;i++){
@@ -98,9 +96,8 @@ void ISRSamplingTimer(int sig) { //each 1/sps
 }
 
 
-//----------------------------------------------------------------------
-void getADC(int it) {
-//----------------------------------------------------------------------
+void getADC_ADS1115(int it) 
+{
     static int adc1_addr=CFG_ADC1;
     struct timespec tim1, tim2, rem;
     int ret, cfg1;
@@ -178,17 +175,15 @@ void getADC(int it) {
 
 }
 
-//----------------------------------------------------------------------
-float twocompl2float(int value, float pga){
-//----------------------------------------------------------------------
+float twocompl2float(int value, float pga)
+{
     float ret;
     ret = (value > 0x7FFF) ? (float)(value-0xFFFF) : (float)(value); 
     return (ret * pga/32768.0); //mV    
 }
 
-//----------------------------------------------------------------------
-void adjust_pga(int it){
-//----------------------------------------------------------------------
+void adjust_pga(int it)
+{
     static int sec_rem[4];
     int i;
     
@@ -219,50 +214,9 @@ void adjust_pga(int it){
     }
 }
 
-//----------------------------------------------------------------------
-void stack_prefault(void) {
-//----------------------------------------------------------------------
-    unsigned char dummy[MAX_SAFE_STACK];
 
-    memset(dummy, 0, MAX_SAFE_STACK);
-    return;
-}
-
-//----------------------------------------------------------------------
-void print_logo(void){
-//----------------------------------------------------------------------
- printf("\to===================================o\n"
-        "\t|      open source data logger      |\n"
-        "\t|       for the Raspberry PI        |\n"
-        "\t|     http://opendatalogger.com     |\n"
-        "\to===================================o\n\n");
- BUILDINFO();
-}
-
-//----------------------------------------------------------------------
-int listdir(const char *dir, char *element){
-//----------------------------------------------------------------------    
-    DIR *d;
-    struct dirent *direntry;
-    int i=0;
-    d = opendir(dir);
-    if (d){
-        while ((direntry=readdir(d)) != NULL){
-            if (!strcmp(direntry->d_name,".") || !strcmp(direntry->d_name,".."))
-                continue;
-            if (i)
-                strcat(element, "\n");                
-            strcat(element, direntry->d_name);
-            i++;
-        }
-    closedir(d);
-    }
-    return i;
-}
-
-//======================================================================
-int main(int argc, char * argv[]){
-//======================================================================
+int main(int argc, char * argv[])
+{
     struct itimerval new;
     float tv;
     int rc;
@@ -300,13 +254,8 @@ int main(int argc, char * argv[]){
         }
         if (!strcmp(argv[1],"help") || !strcmp(argv[1],"-help") || !strcmp(argv[1],"--help")){
             print_logo();
-            printf("usage: \n");
-            printf("    ads                 normal usage (daemonized)\n");
-            printf("    ads -nodaemon       debug mode (not daemonizing, more output)\n");
-            printf("\n");
-            printf("note:\n");
-            printf("    currently you must invoke ads as root!\n\n");
-            exit(0);
+            print_usage();
+            exit(EXIT_SUCCESS);
         }
     }
 
@@ -372,8 +321,9 @@ int main(int argc, char * argv[]){
         exit_all(-1);
     }
 
+    // CHECK connection to ads1115 whose ADDR=0x49 as i2c slave
     fd = i2c_open(i2c_interface);
-    i2c_select(fd, CFG_ADC1);               // CHECK connection to ads1115 whose ADDR=0x49 as i2c slave
+    i2c_select(fd, CFG_ADC1);   
 #ifdef CFG_ADC2
     i2c_select(fd, CFG_ADC2);
 #endif
@@ -384,10 +334,6 @@ int main(int argc, char * argv[]){
 
     if (parse_ini_file(ini_name)) //if it returns -1 -> no valid file
         parse_ini_file(ini_name);
-    
-    
-   
-    
     
     
     rc=pthread_attr_init(&p_attr);
@@ -429,6 +375,7 @@ int main(int argc, char * argv[]){
        Timers  will  never  expire  before the requested time, but may expire some (short) time
        afterward, which depends on the system timer resolution and  on  the  system  load;  see
        time(7) */
+    struct timespec ts;       
     new.it_interval.tv_sec = (int)tv;
     new.it_interval.tv_usec = (int)((tv-new.it_interval.tv_sec)*1000000);// TODO - 20; 
     new.it_value.tv_sec = 0;

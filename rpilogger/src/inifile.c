@@ -1,17 +1,19 @@
 /**
  *   @file    inifile.c
  *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com
  *   @brief   Manipulating config files.
  *   
- *   This software is licenced under the GNU General Public License.
+ *   This software is licensed under the GNU General Public License.
  *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
  */
  
 #include "inifile.h"
 
-//----------------------------------------------------------------------
-void create_ini_file(char *ini_name){
-//----------------------------------------------------------------------
+
+void create_ini_file(char *ini_name)
+{
+
     long li=1;
     long *uid=&li, *gid=&li;
 
@@ -42,9 +44,9 @@ void create_ini_file(char *ini_name){
     chmod(ini_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 }
 
-//----------------------------------------------------------------------
-int parse_ini_file(char *ini_name) {
-//----------------------------------------------------------------------
+
+int parse_ini_file(char *ini_name) 
+{
     dictionary  * ini ;
     ini = iniparser_load(ini_name);
     char *s;
@@ -94,9 +96,8 @@ int parse_ini_file(char *ini_name) {
     }
 }
 
-//----------------------------------------------------------------------
-void update_ini_file(char *ini_name){
-//----------------------------------------------------------------------
+void update_ini_file(char *ini_name)
+{
     dictionary  *ini ;
     char bstr[33];
     FILE *fini ;
@@ -154,29 +155,24 @@ void logErrDate(const char *format, ...)
 }
 
 
-
-//----------------------------------------------------------------------
-int min(int x, int y){
-//----------------------------------------------------------------------
+int min(int x, int y)
+{
     if (x<y)
         return x;
     else 
         return y;
 }
  
-//----------------------------------------------------------------------
-int max(int x, int y){
-//----------------------------------------------------------------------
+int max(int x, int y)
+{
     if (x>y)
         return x;
     else 
         return y;
 }
 
-
-//----------------------------------------------------------------------
-int isValueInIntArr(int val, const int *arr, int size){
-//----------------------------------------------------------------------
+int isValueInIntArr(int val, const int *arr, int size)
+{
     int i;
     for(i=0;i<size;i++)
         if (*(arr+i)==val)

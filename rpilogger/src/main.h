@@ -1,4 +1,13 @@
 #pragma once
+/**
+ *   @file    main.h
+ *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com
+ *   @brief   main header file 
+ *   
+ *   This software is licensed under the GNU General Public License.
+ *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
+ */
 
 #include <stdio.h> //to redirect stdout, stderr
 #include <stdlib.h> //itoa
@@ -30,6 +39,7 @@
 //#include </usr/include/postgresql/libpq-fe.h> //postgresql 
 //#include </usr/include/nopoll/nopoll.h> //websocket
 
+#include "system.h"
 #include "i2c.h"
 #include "ads1115.h"
 #include "filelock.h"
@@ -66,9 +76,6 @@ struct data_struct {
  */
  
 char ini_name[100];
-struct timespec ts, ts1, ts2;
-struct tm *pt1;
-
 FILE *fp_log; 
 
 #define LOGFILE "ads.log"
@@ -83,7 +90,6 @@ const char user[]=USER;
 //--------------- MACROS -----------------------------------------------
 
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
-#define MAX_SAFE_STACK (8*1024) // The maximum stack size which is guaranteed safe to access without  faulting 
 
 
 #define ErrnoCheck(func,cond,retv)  COND_CHECK(func, cond, retv, errno)
@@ -101,36 +107,18 @@ do {                                                                  \
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-#ifndef _TIMESTAMP_
- #define STR_ADD " local time"
- #define _TIMESTAMP_ __DATE__ __TIME__ STR_ADD
-#endif
-#ifndef _USER_AND_HOST
- #define _USER_AND_HOST "?"
-#endif 
-
-#define BUILDINFO() \
- do { \
- printf("INFO: build with gcc %d.%d.%d at %s.\n"\
-        "      %s\n", \
- __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__, _TIMESTAMP_, _USER_AND_HOST); \
- } while(0) 
-
-// #pragma message( BUILDINFO(); )
-
 
 //--------------- PROTOTYPES -------------------------------------------
-void exit_all(int);
 void ISRSamplingTimer(int);
 void adjust_pga(int it);
-void getADC(int it);
+void getADC_ADS1115(int it);
 float twocompl2float(int value, float pga);
 int isValueInIntArr(int val, const int *arr, int size);
 void stack_prefault(void);
 void print_logo(void);
 int listdir(const char *dir, char *element);
 
-//-------------- EXTERNAL FUNCTION PROTOTYPES --------------------------
+//-------------- EXTERNAL FUNCTIONS AND VARIABLES ----------------------
 
 extern void create_ini_file(char *ini_name);
 extern int parse_ini_file(char *ini_name);
@@ -139,3 +127,10 @@ extern void logErrDate(const char *format, ...);
 extern int min(int x, int y);
 extern int max(int x, int y);
 extern int isValueInIntArr(int val, const int *arr, int size);
+
+extern void exit_all(int);
+extern void stack_prefault(void);
+extern void print_logo(void);
+extern void print_usage(void);
+extern int listdir(const char *dir, char *element);
+extern void set_latency_target(void);

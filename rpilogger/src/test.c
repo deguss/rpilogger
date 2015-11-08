@@ -24,6 +24,14 @@
 #define MAX_FILES (1441+10) 
 #define MAX_FILENAME (13+1) // "1446396664.nc"
 
+#define CHECK_NC_ERR(strr) \
+do { \
+    if (status != NC_NOERR){ \
+        logErrDate("%s: %s\n%s\nExit\n",__func__,strr,nc_strerror(status)); \
+        return -1; \
+    } \
+} while(0);
+
 struct params{
     struct timeval startEpoch;
     struct tm stime;
@@ -44,9 +52,10 @@ time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour );
 float standard_deviation(float *datap, int n);
 
 int mkdir_filename(const char *dir_name);
-//----------------------------------------------------------------------
-int get_nc_params(const char *filename, struct params *par, int first){
-//----------------------------------------------------------------------
+
+
+int get_nc_params(const char *filename, struct params *par, int first)
+{
     int status;
     int ncid;
     int dimid;
@@ -54,58 +63,45 @@ int get_nc_params(const char *filename, struct params *par, int first){
     
     status = nc_open(filename, NC_NOWRITE, &ncid);
     if (status != NC_NOERR){ //possible errors: NC_NOMEM, NC_EHDFERR, NC_EDIMMETA, NC_ENOCOMPOIND
-        logErrDate("%s: Could not open file %s to read! nc_open: %s\nExit\n",__func__,filename,nc_strerror(status));
+        logErrDate("%s: Could not open file %s to read!\n%s\nExit\n",__func__,filename,nc_strerror(status));
         return -1;
     }
     
     status = nc_inq_nvars(ncid, &(par->chnumber));
-    if (status != NC_NOERR){
-        logErrDate("%s: nc_inq_nvars: %s\nExit\n",__func__,nc_strerror(status));
-        return -1;
-    }
+    CHECK_NC_ERR("nc_inq_nvars");
     
     status = nc_inq_dimid(ncid, "ch1", &dimid);
-    if (status != NC_NOERR){
-        logErrDate("%s: nc_inq_dimid: %s\nExit\n",__func__,nc_strerror(status));
-        return -1;
-    }
+    CHECK_NC_ERR("nc_inq_dimid");
     
     status = nc_inq_dimlen(ncid, dimid, &(par->length));
-    if (status != NC_NOERR){
-        logErrDate("%s: nc_inq_dimlen: %s\nExit\n",__func__,nc_strerror(status));
-        return -1;
-    }
+    CHECK_NC_ERR("nc_inq_dimlen");
 
     status = nc_get_att_float(ncid, NC_GLOBAL, "sps", &(par->sps));
-    if (status != NC_NOERR){
-        logErrDate("%s: nc_get_att_float: %s\nExit\n",__func__,nc_strerror(status));
-        return -1;
-    }
+    CHECK_NC_ERR("nc_get_att_float");
     
-    
+    //get global attribute sampling start. String e.g. "2015-11-08 01:39:27.499968"
     char str[255];
     status = nc_get_att_text(ncid, NC_GLOBAL, "start", str);
-    if (status != NC_NOERR){
-        logErrDate("%s: nc_get_att_text: %s\nExit\n",__func__,nc_strerror(status));
-        return -1;
-    }
+    CHECK_NC_ERR("nc_get_att_text");
 
-    char fracs[5];
-    str[24]='\0'; //truncate string since get_att_text does not append \0
-    sprintf(fracs,"%s",(str+20*sizeof(char)));
-    par->startEpoch.tv_usec = strtol(fracs,NULL,10) * 100L;
+    str[26]='\0'; //truncate string since get_att_text does not append \0
+    //sprintf(fracs,"%s",(str+20*sizeof(char)));
+    if (sscanf((str+20*sizeof(char)),"%ld",&(par->startEpoch.tv_usec)) != 1){
+        logErrDate("%s: attribute start in %s not valid! (%s)\n",
+        __func__, filename, str);
+    }
     str[19]='\0'; //purge fractional seconds    
     strptime(str, "%Y-%m-%d %H:%M:%S", &(par->stime));
-    par->startEpoch.tv_sec=(long int)mktime(&(par->stime));
-        
+    par->startEpoch.tv_sec=(long int)timegm(&par->stime);
+      
     nc_close(ncid);
     
     //if output desired (first file, template)
     if (first){
         printf("%s: file %s read\n",__func__,filename);
-        printf("\tstarts at: %04d/%02d/%02d %02d:%02d:%02d.%04ld\n", 
+        printf("\tstarts at: %04d/%02d/%02d %02d:%02d:%02d.%ld\n", 
         par->stime.tm_year+1900, par->stime.tm_mon+1, par->stime.tm_mday, 
-        par->stime.tm_hour, par->stime.tm_min, par->stime.tm_sec, par->startEpoch.tv_usec/100);
+        par->stime.tm_hour, par->stime.tm_min, par->stime.tm_sec, par->startEpoch.tv_usec);
         printf("\tsps: %f\n",par->sps);
         printf("\tchannels: %d\n",par->chnumber);
         printf("\tlength: %d\n",par->length);    
@@ -122,10 +118,10 @@ int get_nc_params(const char *filename, struct params *par, int first){
     return 0;
 }
 
-//----------------------------------------------------------------------
+
 int concat_nc_data(const char *file_in_dir, const int i_start, const int i_stop,
-    const char *file_out, const struct params *par, struct timespec (*fnts_p)[MAX_FILES]){
-//----------------------------------------------------------------------    
+const char *file_out, const struct params *par, struct timespec (*fnts_p)[MAX_FILES]){
+
     int status;
     int ncid_in, ncid_out;
     int i, j, k;
@@ -270,9 +266,9 @@ float standard_deviation(float *datap, int n) {
     return 0;
 }
 
-//----------------------------------------------------------------------
-int cmpfunc_timespec( const void *aa, const void *bb) {
-//----------------------------------------------------------------------    
+
+int cmpfunc_timespec( const void *aa, const void *bb) 
+{
     struct timespec *a = (struct timespec *)aa;
     struct timespec *b = (struct timespec *)bb;
     if (a->tv_sec < b->tv_sec)
@@ -280,14 +276,10 @@ int cmpfunc_timespec( const void *aa, const void *bb) {
     if (a->tv_sec > b->tv_sec)
         return (a->tv_sec - b->tv_sec);
     return 0;
-//     char const *aa = (char const *)a;
-//     char const *bb = (char const *)b;
-//     return strcmp(aa, bb);
 }
 
-//----------------------------------------------------------------------
-int getSortedFileList(const char *datadir, struct timespec (*fnts_p)[MAX_FILES]){
-//----------------------------------------------------------------------    
+int getSortedFileList(const char *datadir, struct timespec (*fnts_p)[MAX_FILES])
+{
     DIR *dir;
     struct dirent *ent;
     int ind=0;
@@ -324,25 +316,9 @@ long date_difference(struct tm *tm1, struct tm *tm2){
     return ( (long int) difftime(time2, time1));
 }
 
-//----------------------------------------------------------------------
-time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour){
-//----------------------------------------------------------------------
-    tp1h = (struct tm *)now;
-    tp1h->tm_hour = now->tm_hour+hour;
-    tp1h->tm_min = 0;
-    tp1h->tm_sec = 0;
-    time_t retval = timegm(tp1h); //normalize (using UTC)
-    if (hour!=324324){ //TODO
-        char tmpstr[255];
-        strftime(tmpstr, sizeof(tmpstr), "%F %T %z", tp1h);        
-        printf("%s: next full hour at: %s\n", __func__, tmpstr);
-    }    
-    return retval;
-}
 
-//--------------------------------------------------------------------------------------------------
-int mkdir_filename(const char *dir_name){
-//--------------------------------------------------------------------------------------------------
+int mkdir_filename(const char *dir_name)
+{
     struct stat st = {0};
     char dirname[255];
     strcpy(dirname,dir_name);
@@ -367,24 +343,40 @@ int mkdir_filename(const char *dir_name){
     return 0;
 }
 
-//----------------------------------------------------------------------
-int main(int argc, char * argv[]){
-//----------------------------------------------------------------------    
+
+time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour)
+{
+    *(tp1h) = *((struct tm *)now);
+    tp1h->tm_hour = now->tm_hour+hour;
+    tp1h->tm_min = 0;
+    tp1h->tm_sec = 0;
+    time_t retval = timegm(tp1h); //normalize (using UTC)
+    
+    char tmpstr[255];
+    strftime(tmpstr, sizeof(tmpstr), "%F %T %z", tp1h);        
+    if (hour==1)
+        printf("next full hour at:       %s\n", tmpstr);
+    if (hour==0)
+        printf("this hour started at:    %s\n", tmpstr);
+                
+    return retval;
+}
+
+int main(int argc, char * argv[])
+{
     int i,ind;
-    long lo;
     char file_in_dir[255];
     char file_out_dir[255];
     sprintf(file_in_dir, "/home/pi/data/tmp/");
     sprintf(file_out_dir,"/home/pi/data/");
     
     struct timespec fnts[MAX_FILES];   // array of timespecs = filenames
-    struct timespec (*fnts_p)[MAX_FILES]=&fnts;
     // struct timespec has members:
     //    time_t  tv_sec    #seconds
     //    long    tv_nsec   #nanoseconds        
     
-    i = getSortedFileList(file_in_dir, fnts_p);
-    printf("%d files found.\n",i);
+    i = getSortedFileList(file_in_dir, &fnts);
+    printf("%d files (>%i hours) found.\n",i,i/60);
     if (i<=0){
         logErrDate("No files to process!?\n");
         exit_all(-1);
@@ -393,15 +385,16 @@ int main(int argc, char * argv[]){
     struct tm tp=*(gmtime(&fnts[0].tv_sec));
     char tmpstr[255];
     strftime(tmpstr, sizeof(tmpstr), "%F %T %z", &tp);
-    printf("first file (%ld) starts at: %s\n",fnts[0].tv_sec,tmpstr); 
+    printf("first file (%ld.nc) starts at: %s\n",fnts[0].tv_sec,tmpstr); 
     
     //calculate next full hour (hour file limit)
-    struct tm tp1h; 
-    time_t tp1h_t = calcNextFullHour(&tp, &tp1h, 1);    
-    printf("in total %ld seconds to next full hour\n",(long)(tp1h_t-fnts[0].tv_sec));
+    struct tm tp1h;
+    time_t t1h = calcNextFullHour(&tp, &tp1h, 1);    
+    printf("in total %ld seconds to next full hour\n",(long)(t1h-fnts[0].tv_sec));
     
-    struct tm tp0h; //beginning of this hour (output file name)
-    calcNextFullHour(&tp, &tp0h, 0);    
+    //beginning of this hour (output file name)    
+    struct tm tp0h; 
+    time_t t0h = calcNextFullHour(&tp, &tp0h, 0);
 
 
     char file_in[255];
@@ -419,18 +412,20 @@ int main(int argc, char * argv[]){
         exit_all(-1);        
     }
 
+    printf("\n");
     printf("outfile: %s\n",file_out);
     //open all further files (including the first), assert parameters are identical
-    for(ind=0; date_difference(&tp, &tp1h)>0; ind++){
+    for(ind=0; (t1h-fnts[ind].tv_sec)>0; ind++){
         sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);
-        if (get_nc_params(file_in, &parS, 0) <= 0){
+        if (get_nc_params(file_in, &parS, 0) < 0){
             logErrDate("%d. file (%s) parameter assert error!\n Skipping\n",ind,file_in);
-            break;
+            //TODO: delete file
         }
     }
     ind=ind-1; //to recover index to last element
+    printf("%d files will be concatenated.\n",ind);
     
-    //concat_nc_data(file_in_dir, 0, ind, file_out, &parS);
+    concat_nc_data(file_in_dir, 0, ind, file_out, &parS);
 
     return 0;
 }

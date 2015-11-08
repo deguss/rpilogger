@@ -1,3 +1,13 @@
+/**
+ *   @file    save.c
+ *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com
+ *   @brief   temporary solution, will be included from main.c w/o header
+ *   
+ *   This software is licensed under the GNU General Public License.
+ *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
+ */
+ 
 int mkdir_filename(const char *dir_name);
 void *thread_datastore(void * p);
 
@@ -270,46 +280,6 @@ double difftime_hr(const struct timespec *t2, const struct timespec *t1)
 }
 
 
-int mkdir_filename(const char *dir_name)
-{
-    struct stat st = {0};
-    char dirname[255];
-    strcpy(dirname,dir_name);
-    
-    uint h=1,i,j=0;
-    char tmp[255];
-    for(i=1; i<=strlen(dirname); i++){
-        if(dirname[i]=='.')
-            j=i;
-        if(dirname[i]=='/' || (i==strlen(dirname) && j<h) ){
-            h=i;
-            snprintf(tmp, (size_t)(i+1), dirname);
-            if (stat(tmp, &st) == -1) { //if dir does not exists, try to create it
-                printf("Creating directory %s\n",tmp);
-                if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXG | S_IXOTH)){
-                    logErrDate("%s: could not create directory %s!\n",__func__,tmp);
-                    //exit_all(-1);
-                    return -1;
-                }
-            }       
-        }
-    } 
-    return 0;
-}
-
-
-long fsize(char *filename) 
-{
-
-    struct stat st;
-
-    if (stat(filename, &st) == 0)
-        return (long)st.st_size;
-
-    logErrDate("Cannot determine size of %s\n", filename);
-
-    return -1;
-}
 
 
 

@@ -2,9 +2,10 @@
 /**
  *   @file    i2c.h
  *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com 
  *   @brief   Implements a i2c interface for the Raspberry Pi.
  *   
- *   This software is licenced under the GNU General Public License.
+ *   This software is licensed under the GNU General Public License.
  *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
  */
 
