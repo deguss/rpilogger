@@ -19,6 +19,7 @@
 #include <netcdf.h> //binary file
 
 #define logErrDate printf
+#define exit_all exit
 
 #define MAX_FILES (1441+10) 
 #define MAX_FILENAME (13+1) // "1446396664.nc"
@@ -28,19 +29,18 @@ struct params{
     struct tm stime;
     float sps;
     int chnumber;
-    int length;
+    size_t length;
 };
 #define MAX_CH_NUMBER (8)
 
 int get_nc_params(const char *filename, struct params *par, int first);
 int concat_nc_data(const char *file_in_dir, const int i_start, const int i_stop,
-                const char *file_out, const struct params *par,
-                char *filenames[][MAX_FILENAME], struct timespec (*times)[]);
-int cmpfunc(const void *a, const void *b);
-int getSortedFileList(const char *datadir, char *filenames[][MAX_FILENAME], 
-                struct timespec (*times)[MAX_FILES]);
-long int date_difference(struct tm *tm1, struct tm *tm2);
-void calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour );
+    const char *file_out, const struct params *par, 
+    struct timespec (*fnts_p)[MAX_FILES]);
+int cmpfunc_timespec(const void *a, const void *b);
+int getSortedFileList(const char *datadir, struct timespec (*fnts_p)[MAX_FILES]);
+long date_difference(struct tm *tm1, struct tm *tm2);
+time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour );
 float standard_deviation(float *datap, int n);
 
 int mkdir_filename(const char *dir_name);
@@ -124,8 +124,7 @@ int get_nc_params(const char *filename, struct params *par, int first){
 
 //----------------------------------------------------------------------
 int concat_nc_data(const char *file_in_dir, const int i_start, const int i_stop,
-                const char *file_out, const struct params *par,
-                char *filenames[][MAX_FILENAME], struct timespec (*times)[]){
+    const char *file_out, const struct params *par, struct timespec (*fnts_p)[MAX_FILES]){
 //----------------------------------------------------------------------    
     int status;
     int ncid_in, ncid_out;
@@ -135,9 +134,12 @@ int concat_nc_data(const char *file_in_dir, const int i_start, const int i_stop,
     int number = (i_stop - i_start)+1;
     if (number < 1){
         logErrDate("%s: parameter error!\nExit\n",__func__);
+        return -1;
     }
     
-    mkdir_filename(file_out);
+    if (mkdir_filename(file_out) < 0){
+        
+    }
     // open file to write
     status = nc_create(file_out, NC_CLOBBER|NC_NETCDF4, &ncid_out);
     if (status != NC_NOERR){ //possible errors: NC_ENOMEM, NC_EHDFERR, NC_EFILEMETA
@@ -189,7 +191,7 @@ int concat_nc_data(const char *file_in_dir, const int i_start, const int i_stop,
     // for as many input files as given -------------
     int varid[MAX_CH_NUMBER];
     for (j=i_start, i=0; j<=i_stop; i++, j++){
-        sprintf(file_in,"%s%s.nc",file_in_dir,*filenames[j]);
+        sprintf(file_in,"%s%ld.nc",file_in_dir,fnts_p[i]->tv_sec);
         printf("input file: %s\n",file_in);
 
         status = nc_open(file_in, NC_NOWRITE, &ncid_in);
@@ -269,35 +271,37 @@ float standard_deviation(float *datap, int n) {
 }
 
 //----------------------------------------------------------------------
-int cmpfunc( const void *a, const void *b) {
+int cmpfunc_timespec( const void *aa, const void *bb) {
 //----------------------------------------------------------------------    
-     char const *aa = (char const *)a;
-     char const *bb = (char const *)b;
-     return strcmp(aa, bb);
+    struct timespec *a = (struct timespec *)aa;
+    struct timespec *b = (struct timespec *)bb;
+    if (a->tv_sec < b->tv_sec)
+        return 0-(b->tv_sec < a->tv_sec);
+    if (a->tv_sec > b->tv_sec)
+        return (a->tv_sec - b->tv_sec);
+    return 0;
+//     char const *aa = (char const *)a;
+//     char const *bb = (char const *)b;
+//     return strcmp(aa, bb);
 }
 
 //----------------------------------------------------------------------
-int getSortedFileList(const char *datadir, char *filenames[][MAX_FILENAME], 
-        struct timespec (*times)[MAX_FILES]){
+int getSortedFileList(const char *datadir, struct timespec (*fnts_p)[MAX_FILES]){
 //----------------------------------------------------------------------    
-    char afilename[255];
-    char timestr[MAX_FILENAME];
-    
     DIR *dir;
     struct dirent *ent;
-    int i,ind=0;
-    struct tm tm1;
+    int ind=0;
+    long l;
     printf("reading directory %s...\n",datadir);
     if ((dir = opendir(datadir)) != NULL) {
         while ((ent=readdir(dir)) != NULL) { //print all the files and directories within directory 
             if (!strcmp(ent->d_name,".") || !strcmp(ent->d_name,".."))
                 continue;
-            strncpy(timestr,ent->d_name, MAX_FILENAME-1); //e.g. 1446396664.4998.nc
-            timestr[MAX_FILENAME-1]='\0'; //truncate length
-            if (sscanf(timestr,"%ld.%ld.nc",&times[ind]->tv_sec, &times[ind]->tv_nsec) != 2)
+            if (sscanf(ent->d_name,"%ld.nc",&l) != 1){
                 logErrDate("%s: not a valid file %s\n",__func__,ent->d_name); 
+            }
             else {
-                times[ind]->tv_nsec*=1E5; //convert to real ns (from 1/10000 sec)
+                (*fnts_p)[ind].tv_sec = (time_t)l;
                 ind++;
             }
         }
@@ -306,16 +310,12 @@ int getSortedFileList(const char *datadir, char *filenames[][MAX_FILENAME],
         logErrDate("%s: could not open directory %s\n",__func__,datadir);
         return -1;
     }
-    qsort(filenames, ind, MAX_FILENAME, cmpfunc);  
-    for(i=0;i<ind;i++){ //recalculate time struct
-        sscanf(filenames[i][0],"%ld.%ld.nc",&times[i]->tv_sec, &times[i]->tv_nsec);
-    }
-     
+    qsort(fnts_p, ind, 0, cmpfunc_timespec);       
     return ind;
 }
 
 //----------------------------------------------------------------------
-long int date_difference(struct tm *tm1, struct tm *tm2){
+long date_difference(struct tm *tm1, struct tm *tm2){
 //----------------------------------------------------------------------
     time_t time1;
     time_t time2;   
@@ -325,19 +325,19 @@ long int date_difference(struct tm *tm1, struct tm *tm2){
 }
 
 //----------------------------------------------------------------------
-void calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour){
+time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour){
 //----------------------------------------------------------------------
-    tp1h->tm_year = now->tm_year; 
-    tp1h->tm_mon  = now->tm_mon;
-    tp1h->tm_mday = now->tm_mday;
+    tp1h = (struct tm *)now;
     tp1h->tm_hour = now->tm_hour+hour;
     tp1h->tm_min = 0;
     tp1h->tm_sec = 0;
-    mktime(tp1h); //normalize
-    if (hour==1)
-        printf("%s: next full hour at: %04d/%02d/%02d %02d:%02d:%02d\n", __func__,
-    tp1h->tm_year+1900, tp1h->tm_mon+1, tp1h->tm_mday, tp1h->tm_hour, tp1h->tm_min, 
-    tp1h->tm_sec);
+    time_t retval = timegm(tp1h); //normalize (using UTC)
+    if (hour!=324324){ //TODO
+        char tmpstr[255];
+        strftime(tmpstr, sizeof(tmpstr), "%F %T %z", tp1h);        
+        printf("%s: next full hour at: %s\n", __func__, tmpstr);
+    }    
+    return retval;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -359,7 +359,6 @@ int mkdir_filename(const char *dir_name){
                 printf("Creating directory %s\n",tmp);
                 if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXG | S_IXOTH)){
                     logErrDate("%s: could not create directory %s!\n",__func__,tmp);
-                    //exit_all(-1);
                     return -1;
                 }
             }       
@@ -371,62 +370,68 @@ int mkdir_filename(const char *dir_name){
 //----------------------------------------------------------------------
 int main(int argc, char * argv[]){
 //----------------------------------------------------------------------    
-    char datadir[255];
     int i,ind;
-    strcpy(datadir,"/home/pi/data/tmp/");
+    long lo;
+    char file_in_dir[255];
+    char file_out_dir[255];
+    sprintf(file_in_dir, "/home/pi/data/tmp/");
+    sprintf(file_out_dir,"/home/pi/data/");
     
-    // static array of file names e.g. ["1446396664.nc"]
-    char filenames[MAX_FILES][MAX_FILENAME];   
-    // pointer to first 
-    struct timespec ts1[MAX_FILES];   // array of timespecs
+    struct timespec fnts[MAX_FILES];   // array of timespecs = filenames
+    struct timespec (*fnts_p)[MAX_FILES]=&fnts;
     // struct timespec has members:
-    //    time_t  tv_sec    seconds
-    //    long    tv_nsec   nanoseconds        
+    //    time_t  tv_sec    #seconds
+    //    long    tv_nsec   #nanoseconds        
     
-    printf("%d files found.\n",getSortedFileList(datadir, &(filenames[0]), &ts1));
+    i = getSortedFileList(file_in_dir, fnts_p);
+    printf("%d files found.\n",i);
+    if (i<=0){
+        logErrDate("No files to process!?\n");
+        exit_all(-1);
+    }
     
-    struct tm tp=*(gmtime(&ts1[0]));
-    printf("first file starts at: %04d/%02d/%02d %02d:%02d:%02d.%09ld\n", 
-    tp.tm_year+1900, tp.tm_mon+1, tp.tm_mday, tp.tm_hour, tp.tm_min, 
-    tp.tm_sec, ts1[0].tv_nsec);   //inclusive fractional sec
+    struct tm tp=*(gmtime(&fnts[0].tv_sec));
+    char tmpstr[255];
+    strftime(tmpstr, sizeof(tmpstr), "%F %T %z", &tp);
+    printf("first file (%ld) starts at: %s\n",fnts[0].tv_sec,tmpstr); 
     
-    struct tm tp1h; //next full hour (hour file limit)
-    calcNextFullHour(&tp, &tp1h, 1);
-    printf("in total %ld seconds to next full hour\n",date_difference(&tp, &tp1h));
+    //calculate next full hour (hour file limit)
+    struct tm tp1h; 
+    time_t tp1h_t = calcNextFullHour(&tp, &tp1h, 1);    
+    printf("in total %ld seconds to next full hour\n",(long)(tp1h_t-fnts[0].tv_sec));
+    
     struct tm tp0h; //beginning of this hour (output file name)
     calcNextFullHour(&tp, &tp0h, 0);    
 
-    char file_in_dir[255];
+
     char file_in[255];
     char file_out[255];
+    char daystr[255];
     //open first file to check length, sps, number of channels ...
     struct params parM, parS;
-    sprintf(file_in_dir,"/home/pi/data/tmp/");
-    sprintf(file_in,    "/home/pi/data/tmp/%s",filenames[0]);
-    sprintf(file_out,   "/home/pi/data/%04d/%02d/%02d/%04d-%02d-%02dT%02d.nc",
-    tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, 
-    tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, tp0h.tm_hour);
-    get_nc_params(file_in, &parM, 1);
+    
+    sprintf(file_in,    "%s%ld.nc",file_in_dir,fnts[0].tv_sec);
+    sprintf(daystr, "%04d/%02d/%02d", tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday);
+    sprintf(file_out, "%s%s/%04d-%02d-%02dT%02d.nc", file_out_dir,daystr,
+        tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, tp0h.tm_hour);
+    if (get_nc_params(file_in, &parM, 1) <0){
+        logErrDate("Error while reading parameters!\nExit\n");
+        exit_all(-1);        
+    }
 
     printf("outfile: %s\n",file_out);
     //open all further files (including the first), assert parameters are identical
     for(ind=0; date_difference(&tp, &tp1h)>0; ind++){
-        tp=&times[ind];
-        sprintf(file_in,"/home/pi/data/tmp/%s%s.nc",daystr,filenames[ind]);
-        get_nc_params(file_in, &parS, 0);
-            printf("%2d %s\n",ind,file_in);
+        sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);
+        if (get_nc_params(file_in, &parS, 0) <= 0){
+            logErrDate("%d. file (%s) parameter assert error!\n Skipping\n",ind,file_in);
+            break;
+        }
     }
     ind=ind-1; //to recover index to last element
     
     //concat_nc_data(file_in_dir, 0, ind, file_out, &parS);
 
-    
-    
-    
-    
-    //tp->tm_hour+=1;
-    //mktime(tp); // normalize result
-    
     return 0;
 }
 

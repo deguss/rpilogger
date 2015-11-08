@@ -1,8 +1,9 @@
 int mkdir_filename(const char *dir_name);
 void *thread_datastore(void * p);
 
-void saveit(double g);
-off_t fsize(char *);
+void write_netcdf();
+long fsize(char *);
+double difftime_hr(const struct timespec *t1, const struct timespec *t2);
 
 pthread_mutex_t a_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t got_request = PTHREAD_COND_INITIALIZER;
@@ -17,7 +18,6 @@ pthread_attr_t p_attr;
 //--------------------------------------------------------------------------------------------------
 void *thread_datastore(void * p){ 
 //--------------------------------------------------------------------------------------------------
-    double g;
     int rc;
     sigset_t set;
     long tpid = (long)syscall(SYS_gettid);
@@ -39,8 +39,7 @@ void *thread_datastore(void * p){
     while (done==0) {
         pthread_cond_wait(&got_request, &a_mutex);
         pthread_mutex_unlock(&a_mutex); // ??????????
-        g = (dst.t1.tv_sec*1E9+dst.t1.tv_nsec)-(dst.t2.tv_sec*1E9+dst.t2.tv_nsec);
-        saveit(g);
+        write_netcdf();
         if (auto_pga && pga_uf){    //write new pga in ini file 
             update_ini_file(ini_name);
             //printf("New PGA written in %s!\n",ini_name);
@@ -55,9 +54,9 @@ void *thread_datastore(void * p){
 #pragma GCC diagnostic pop
 
 //----------------------------------------------------------------------
-void saveit(double g){ // generate BINARY file: *.nc (netCDF)   
+void write_netcdf(){ // generate BINARY file: *.nc (netCDF)   
 //----------------------------------------------------------------------
-    static struct tm t1;
+    static struct tm tm;
     int i;
     char str[500];
     char fn[255];
@@ -66,9 +65,12 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
     float d[MAX_SAMPL];
     static long filesize_c;
     long filesize;
+    // tps indicated the time of the program start, the entirely first sample
+    // after starting the program. (is used to determine file size check compare to)    
+    static struct timespec tps; 
     
-    //t1 = *gmtime(&dst.t1.tv_sec); //first sample of batch
-    sprintf(fn,"%s/tmp/%ld.nc",datafiledir,dst.t1.tv_sec);
+    tm = *gmtime(&dst.t2.tv_sec); 
+    sprintf(fn,"%s/tmp/%ld.nc",datafiledir,dst.t2.tv_sec);
     mkdir_filename(fn);
      
     status = nc_create(fn, NC_CLOBBER|NC_NETCDF4, &ncid);
@@ -143,7 +145,7 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
 
 
     // assign global attributes
-    sprintf(str,"%d-%02d-%02d %02d:%02d:%02d.%06ld",t1.tm_year+1900,t1.tm_mon+1, t1.tm_mday, t1.tm_hour,t1.tm_min,t1.tm_sec, dst.t1.tv_nsec/1000L);
+    sprintf(str,"%d-%02d-%02d %02d:%02d:%02d.%06ld",tm.tm_year+1900,tm.tm_mon+1, tm.tm_mday, tm.tm_hour,tm.tm_min,tm.tm_sec, dst.t2.tv_nsec/1000L);
     status = nc_put_att_text(ncid, NC_GLOBAL, "start", strlen(str), str);
     if (status != NC_NOERR){// NC_EINVAL, NC_ENOTVAR, NC_EBADTYPE, NC_ENOMEM, NC_EFILLVALUE
         logErrDate("savefile, nc_put_att_text param start: %s\nExit\n",nc_strerror(status));
@@ -238,14 +240,20 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
         logErrDate("savefile, nc_close %s\nExit\n",nc_strerror(status));
         exit(EXIT_FAILURE);
     }
-        //printf("%d-%02d-%02d %02d:%02d:%02d.%04ld  %.06g\n",t1.tm_year+1900,t1.tm_mon+1, t1.tm_mday, t1.tm_hour, t1.tm_min, t1.tm_sec, dst.ts[piter].tv_nsec/100000L, g/1E9);
-    if (dst.t2.tv_sec == 0){
-        filesize_c=(unsigned long)fsize(fn);
-        printf("File written: %s.   (first file)        Size: %ldKiB\n",fn, (filesize_c)/1024);
-    }
+        //printf("%d-%02d-%02d %02d:%02d:%02d.%04ld  %.06g\n",tm.tm_year+1900,tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, dst.ts[piter].tv_nsec/100000L, g/1E9);
+        
+    //check if this is the first file 
+    if (tps.tv_sec==0){ 
+        tps = dst.t2; //no memcpy needed
+        filesize_c=fsize(fn);
+        logErrDate("File written: %s.   (first file)      size=%ldKiB\n",
+            fn, (filesize_c)/1024);
+    } 
     else {
         filesize = (unsigned long)fsize(fn);
-        printf("File written: %s. Ellapsed: %.6lfs. Size: %ldKiB\n",fn, g/1E9,(filesize)/1024);
+        logErrDate("file=%ld.nc, last=%.6fs, total=%.3fs, size=%ldKiB\n",
+            dst.t2.tv_sec, difftime_hr(&dst.t1, &dst.t2), difftime_hr(&dst.t2, &tps),
+             (filesize)/1024);
         if (filesize != filesize_c){
             logErrDate("Error! Fize size not consistent!\nExit\n");
             exit(EXIT_FAILURE);
@@ -254,11 +262,16 @@ void saveit(double g){ // generate BINARY file: *.nc (netCDF)
     }
 }
 
+double difftime_hr(const struct timespec *t2, const struct timespec *t1)
+{
+    return ( ((double)t2->tv_sec*1E9 + (double)t2->tv_nsec)-
+             ((double)t1->tv_sec*1E9 + (double)t1->tv_nsec) ) / 1E9;
+
+}
 
 
-//--------------------------------------------------------------------------------------------------
-int mkdir_filename(const char *dir_name){
-//--------------------------------------------------------------------------------------------------
+int mkdir_filename(const char *dir_name)
+{
     struct stat st = {0};
     char dirname[255];
     strcpy(dirname,dir_name);
@@ -284,13 +297,14 @@ int mkdir_filename(const char *dir_name){
     return 0;
 }
 
-//--------------------------------------------------------------------------------------------------
-off_t fsize(char *filename) {
-//--------------------------------------------------------------------------------------------------
+
+long fsize(char *filename) 
+{
+
     struct stat st;
 
     if (stat(filename, &st) == 0)
-        return st.st_size;
+        return (long)st.st_size;
 
     logErrDate("Cannot determine size of %s\n", filename);
 

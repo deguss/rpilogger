@@ -132,20 +132,19 @@ void update_ini_file(char *ini_name){
 }
 
 
-//----------------------------------------------------------------------
-void logErrDate(const char *format, ...) { 
-//----------------------------------------------------------------------
+
+void logErrDate(const char *format, ...) 
+{ 
     char outstr[80];
-    time_t t;
+    time_t t = time(NULL);
     struct tm *tmp;
 
-    t = time(NULL);
-    tmp = localtime(&t);
-    if (tmp == NULL) {
+    if ((tmp = localtime(&t)) == NULL) {
+        printf("localtime");
         perror("localtime");
-        exit(EXIT_FAILURE);
+        exit_all(-1);
     }
-    strftime(outstr, 80, "%b %d %H:%M:%S: ", tmp);
+    strftime(outstr, 80, "%b %e %T: ", tmp); 
     fprintf(stderr,outstr);
 
     va_list args;
@@ -153,6 +152,8 @@ void logErrDate(const char *format, ...) {
     vfprintf(stderr, format, args);
     va_end (args);
 }
+
+
 
 //----------------------------------------------------------------------
 int min(int x, int y){

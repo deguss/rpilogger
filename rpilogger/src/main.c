@@ -1,7 +1,7 @@
 #include "main.h"
 #include "save.c"
 
-// TODO if sampling rate 1/300 what is in 1-minute file???
+// TODO if sampling rate lower than 1/60 what is in 1-minute file???
  
 //----------------------------------------------------------------------
 void exit_all(int sig) { //Ctrl+C
@@ -21,14 +21,19 @@ void ISRSamplingTimer(int sig) { //each 1/sps
 //----------------------------------------------------------------------
     int err = -1;
     static int ov[4]; 
+    static int notfirst;
     int i;
+    
+    //check if we are at the first sample of the lower or eq. of the upper buffer
+    if ((dst.it == 0) || (dst.it == sampl)){
+        dst.t2=dst.t1; //store timestamp for processing in t2!
+        clock_gettime(CLOCK_REALTIME, &dst.t1); 
+    }    
+    
+    //sampling
     getADC(dst.it);
 
-    if ((dst.it == sampl-1) || (dst.it == 2*sampl-1)){
-        dst.t2=dst.t1;
-        clock_gettime(CLOCK_REALTIME, &dst.t1);
-    }
-
+    //overvoltage check 
     for (i=0;i<CFG_NR_CH;i++){
         if (fabs(dst.data[dst.it][i]) > overvoltage){
             ov[i]++;
@@ -38,14 +43,16 @@ void ISRSamplingTimer(int sig) { //each 1/sps
             }
         }
     }
-
     if (err > -1)
         printf("WARN: Overvoltage on ch%i! /ch1=%.0f, ch2=%.0f, ch3=%.0f ch4=%.0f/\n",err,dst.data[dst.it][0],dst.data[dst.it][1],dst.data[dst.it][2],dst.data[dst.it][3]);
-        
+    
+    //if auto gain is selected (from config file), calculate it    
     if (auto_pga)
         adjust_pga(dst.it);
         
-    if (nodaemon){  //if started in debug mode (flag -nodaemon) additional output will be printed
+    //if started in debug mode (flag -nodaemon) additional output will be printed    
+    //  regardless of the sampling rate, once a second
+    if (nodaemon){  
         static int cnt;
         if (++cnt == (int)sps){
             printf("debug: ch1=%+5.0f",dst.data[dst.it][0]);
@@ -63,22 +70,29 @@ void ISRSamplingTimer(int sig) { //each 1/sps
         }
         
     }
-
-    dst.it++;
     
-    if (dst.it == sampl){   //FIRST batch ready for processing
+    //lower half ready for processing if sampl+1 measurements taken
+    //at this time already the upper half of the buffer gets filled.
+    if (dst.it == sampl){   
         piter = 0;
         pthread_mutex_lock(&a_mutex);
         pthread_cond_signal(&got_request);
         pthread_mutex_unlock(&a_mutex);
     }
-    else if (dst.it == 2*sampl){ //SECOND batch -"-
+    else if (dst.it == 1 && notfirst){ //upper half ready for processing
         piter = sampl;
         pthread_mutex_lock(&a_mutex);
         pthread_cond_signal(&got_request);
         pthread_mutex_unlock(&a_mutex);
+    }
+    
+    //increment buffer index
+    dst.it++;
+    if (dst.it == 2*sampl){ //flip over
+        notfirst = 1; //set static variable
         dst.it=0;
     }
+    
         
     signal (sig, ISRSamplingTimer);
 }
@@ -222,7 +236,7 @@ void print_logo(void){
         "\t|       for the Raspberry PI        |\n"
         "\t|     http://opendatalogger.com     |\n"
         "\to===================================o\n\n");
- printf(BUILDINFO);
+ BUILDINFO();
 }
 
 //----------------------------------------------------------------------

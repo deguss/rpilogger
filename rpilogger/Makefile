@@ -26,19 +26,20 @@ WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
 LDFLAGS:=-lrt -lnetcdf -lm -lpthread
 OBJECTS:=main.c i2c.c inifile.c filelock.c iniparser.c dictionary.c
 
+now=$(shell date "+%F %T %z")
 user=$(shell whoami)
-ifeq ($(user),root)
- targets := root
-endif
+host=$(shell hostname)
+mac=$(shell cat /sys/class/net/eth0/address)
+PREPROC+=-D _TIMESTAMP_="\"$(now)\""
+PREPROC+=-D _USER_AND_HOST="\"$(user) at $(host) from $(mac)\""
 
 	
 help:
 	@echo "usage:"
 	@echo "        make clean           # removes output dir: build/ and debug/"
 	@echo "        make all             # binary executable build/$(TARGET) will be created"
-	@echo "        make install         # copies build to /opt/opendatalogger and "
-	@echo "                                performs configuration (crontab) + setups"
-	@echo "        make uninstall       # removes the installation"	
+	@echo "        make install         # no effect"
+	@echo "        make uninstall       # no efffect"	
 	@echo "        make debug           # gdb conform executable will be created for debugging"
 
 clean: 

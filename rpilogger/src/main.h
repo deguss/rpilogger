@@ -53,7 +53,18 @@ struct data_struct {
     struct timespec t2;
     int it;
 } dst;
-
+/* The sampling process fills the buffer 'data' in exactly 2 minutes.
+ * However when reaching it's half (after 1min) the storage thread is triggered,
+ * to write out the data (from either the lower half or upper half) to disk.
+ * 
+ * t1 always keeps the start time of the first sample in the active half,
+ * regardless if it is the lower or the upper.
+ * 
+ * t2 always indicates the start time of the first sample of that half, 
+ * which is read for processing (=writing to disk).
+ * 
+ */
+ 
 char ini_name[100];
 struct timespec ts, ts1, ts2;
 struct tm *pt1;
@@ -89,8 +100,23 @@ do {                                                                  \
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-#define BUILDINFO "INFO: build with gcc " STR(__GNUC__) "." STR(__GNUC_MINOR__) "." STR(__GNUC_PATCHLEVEL__) " on " __DATE__ " at " __TIME__ " UTC\n"
-//#pragma message( BUILDINFO )
+
+#ifndef _TIMESTAMP_
+ #define STR_ADD " local time"
+ #define _TIMESTAMP_ __DATE__ __TIME__ STR_ADD
+#endif
+#ifndef _USER_AND_HOST
+ #define _USER_AND_HOST "?"
+#endif 
+
+#define BUILDINFO() \
+ do { \
+ printf("INFO: build with gcc %d.%d.%d at %s.\n"\
+        "      %s\n", \
+ __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__, _TIMESTAMP_, _USER_AND_HOST); \
+ } while(0) 
+
+// #pragma message( BUILDINFO(); )
 
 
 //--------------- PROTOTYPES -------------------------------------------
