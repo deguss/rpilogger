@@ -134,3 +134,5 @@ extern void print_logo(void);
 extern void print_usage(void);
 extern int listdir(const char *dir, char *element);
 extern void set_latency_target(void);
+
+extern long fsize(char *filename);

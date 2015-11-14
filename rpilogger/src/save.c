@@ -12,7 +12,6 @@ int mkdir_filename(const char *dir_name);
 void *thread_datastore(void * p);
 
 void write_netcdf();
-long fsize(char *);
 double difftime_hr(const struct timespec *t1, const struct timespec *t2);
 
 pthread_mutex_t a_mutex = PTHREAD_MUTEX_INITIALIZER;
