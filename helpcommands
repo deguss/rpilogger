@@ -21,6 +21,8 @@
  find .//. ! -name . -print | wc -l    # counts files recursively
  cat /proc/interrupts	   # view interrupts, CPU properities
  lsmod                     # list kernel modules loaded (load with modprobe)
+ sudo aptitude search courses # search for header file "courses" in packages
+ gprof  # profiler
  gcc -dM -E - < /dev/null  # list all C preprocessor constants
 ---------------------------------------------------------------------------
 

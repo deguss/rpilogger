@@ -21,7 +21,7 @@ PREPROC+=-D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01
 SHELL:=/bin/bash
 VPATH:=src
 TARGET:=ads
-CC:=gcc
+CC:=gcc-4.6
 CCFLAGS:=-std=gnu99 -O3
 WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
 LDFLAGS:=-lrt -lnetcdf -lm -lpthread
@@ -42,6 +42,7 @@ help:
 	@echo "        make install         # no effect"
 	@echo "        make uninstall       # no efffect"	
 	@echo "        make debug           # gdb conform executable will be created for debugging"
+	@echo "        make gcov         # gprof conform executable will be created for profiling"	
 
 clean: 
 	@rm -r -f build
@@ -66,6 +67,13 @@ debug: $(OBJECTS)
 	@$(CC) -E $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) $^ > debug/ads.obj
 	$(CC) -g $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
 	@echo "ready for debugging. use gdb"
+
+gcov: $(OBJECTS)
+	@rm -r -f build
+	@rm -r -f debug
+	@mkdir -p debug
+	$(CC) -fprofile-arcs -ftest-coverage $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
+	@echo "ready for coverage analysis. use gcov src/main.c and check main.c.gcov"	
 	
 install: ads
 	@echo "beginning installing"
@@ -91,5 +99,5 @@ else
 endif
 	@echo "install done"	
 	
-.PHONY: all debug clean install uninstall
+.PHONY: all debug gcov clean install uninstall
 	

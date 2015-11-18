@@ -79,6 +79,7 @@ char ini_name[100];
 FILE *fp_log; 
 
 #define LOGFILE "ads.log"
+#define HISTFILE "histog.json"
 #define LOGDIR "log"
 #define CONFIGFILE "daq.cfg"
 #define FILELOCK "/var/run/ads.pid"
@@ -109,7 +110,9 @@ do {                                                                  \
 
 
 //--------------- PROTOTYPES -------------------------------------------
-void ISRSamplingTimer(int);
+void take_a_sample(struct timespec *tabs);
+//static inline long calcdiff_us(struct timespec t1, struct timespec t2)
+//static inline void tsnorm(struct timespec *ts)
 void adjust_pga(int it);
 void getADC_ADS1115(int it);
 float twocompl2float(int value, float pga);
