@@ -21,6 +21,7 @@ PREPROC+=-D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01
 SHELL:=/bin/bash
 VPATH:=src
 TARGET:=ads
+DEPLOY:=/opt/opendatalogger
 CC:=gcc-4.6
 CCFLAGS:=-std=gnu99 -O3
 WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
@@ -34,7 +35,29 @@ mac=$(shell cat /sys/class/net/eth0/address)
 PREPROC+=-D _TIMESTAMP_="\"$(now)\""
 PREPROC+=-D _USER_AND_HOST="\"$(user) at $(host) from $(mac)\""
 
+NO_COLOR=\x1b[0m
+OK_COLOR=\x1b[32;01m
+ERROR_COLOR=\x1b[31;01m
+WARN_COLOR=\x1b[33;01m
 	
+		
+all: $(OBJECTS)
+	@rm -r -f debug		
+	@mkdir -p build
+	@rm -f build/$(TARGET)
+# save gcc version information to file gccinfo
+	@$(CC) -v 2> build/gccinfo
+# save compiler flags into file flaginfo
+	@echo "$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^" > build/flaginfo
+# compile (and save output to file buildinfo
+	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
+	@if test -e build/$(TARGET); then \
+echo -e "$(OK_COLOR)[OK] all done$(NO_COLOR)"; \
+echo -e "$(WARN_COLOR)please run make install$(NO_COLOR)"; \
+else \
+echo -e "$(ERROR_COLOR)compilation failed$(NO_COLOR)"; \
+fi
+
 help:
 	@echo "usage:"
 	@echo "        make clean           # removes output dir: build/ and debug/"
@@ -42,25 +65,14 @@ help:
 	@echo "        make install         # no effect"
 	@echo "        make uninstall       # no efffect"	
 	@echo "        make debug           # gdb conform executable will be created for debugging"
-	@echo "        make gcov         # gprof conform executable will be created for profiling"	
+	@echo "        make gcov            # gprof conform executable will be created for profiling"	
 
 clean: 
 	@rm -r -f build
 	@rm -r -f debug
 	@rm -r -f log
 	@echo "clean done"
-		
-all: $(OBJECTS)
-	@rm -r -f debug		
-	@mkdir -p build
-# save gcc version information to file gccinfo
-	@$(CC) -v 2> build/gccinfo
-# save compiler flags into file flaginfo
-	@echo "$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^" > build/flaginfo
-# compile (and save output to file buildinfo
-	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
-	@echo "all done"
-	
+
 debug: $(OBJECTS)
 	@rm -r -f build
 	@mkdir -p debug
@@ -75,29 +87,29 @@ gcov: $(OBJECTS)
 	$(CC) -fprofile-arcs -ftest-coverage $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
 	@echo "ready for coverage analysis. use gcov src/main.c and check main.c.gcov"	
 	
-install: ads
-	@echo "beginning installing"
-ifneq ($(targets),root)
-	@echo "make sure you have root privilegs prior installing"
-	@echo "will now exit"
-	@exit 1
-else
-	@echo "installing..."
-	@echo "not yet implemented"
+install: build
+ifneq ($(user),root)
+	@echo -e "$(ERROR_COLOR)make sure you have root privilegs prior installing$(NO_COLOR)"
+	@exit -1
 endif
-	@echo "install done"	
+	@echo "installing..."
+	cp -r build $(DEPLOY)
+	
+	@echo -e "$(OK_COLOR)[OK]$(NO_COLOR)"
+	@echo "test data logging by "
+	@echo "    /opt/opendatalogger/$(TARGET) --nodaemon"
+	@echo "or start the service by"
+	@echo "    /etc/init.d/opendatalogger start"
 
-uninstall: ads
-	@echo "beginning uninstalling"
-ifneq ($(targets),root)
-	@echo "make sure you have root privilegs prior uninstalling"
-	@echo "will now exit"
-	@exit 1
-else
+
+uninstall: 
+ifneq ($(user),root)
+	@echo -e "$(ERROR_COLOR)make sure you have root privilegs prior uninstalling$(NO_COLOR)"
+	@exit -1
+endif
 	@echo "uninstalling..."
 	@echo "not yet implemented"
-endif
-	@echo "install done"	
+
 	
 .PHONY: all debug gcov clean install uninstall
 	

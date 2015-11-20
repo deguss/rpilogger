@@ -13,7 +13,7 @@
  git remote update         # check if datalogger is up-to-date
  git pull                  # pull newest version (merging)
  git status                # displays status of local files
-
+ vcgencmd measure_temp     # displays temperature of CPU in deg C
 ------------------------ [ for developers ] ------------------------------
  sudo netstat -plant       # lists open ports / internet connections
  lsof -p $(pgrep ads)      # lists open files of a process

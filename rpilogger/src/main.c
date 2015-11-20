@@ -461,8 +461,8 @@ int main(int argc, char * argv[])
         //fprintf(fp,"%d,",(int)diff);
         
         //termination
-        if (cnt >= 70*sps)
-            done = 1;
+        //if (cnt >= 70*sps)
+        //    done = 1;
     
     }
     //fseek(fp,-1,SEEK_CUR);

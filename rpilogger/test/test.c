@@ -203,12 +203,17 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
 
     int status;
     int ncid_in, ncid_out;
-    int j, k;
+    int j, k, m;
     char file_in[255];
     char varstr[3+1]; //channel name e.g. "ch1"
-    if (count < 1 || file_in_dir == NULL || file_out == NULL || par == NULL){
+    if (count < 2 || file_in_dir == NULL || file_out == NULL || par == NULL){
         logErrDate("%s: parameter error!\nExit\n",__func__);
         return -1;
+    }
+    if (count < 60){
+        printf("warn %s: it seems to have too few files for concatenation. "
+               "start time will be adjusted, and the file filled up with "
+               "NaN values to the next full hour.\n",__func__);
     }
     
     if (mkdir_filename(file_out) < 0){
@@ -225,7 +230,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     
     //allocate memory for 1 hour input files 
     float *chp[MAX_CH_NUMBER];
-    size_t nnumb = par->length*(count+1);
+    size_t nnumb = par->length*(60+1);
     for (k=0; k<par->chnumber; k++){
         chp[k] = calloc(nnumb, sizeof(float));
         if (chp[k] == NULL){
@@ -241,7 +246,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     for (k=0; k<par->chnumber; k++){ //for as many channels as in file (1,2,4 or 8)
         sprintf(varstr,"%s%d","ch",k+1); //ch1, ch2 ...
         // define dimensions 
-        status = nc_def_dim(ncid_out, varstr, par->length*count, &out_dimid[k]);
+        status = nc_def_dim(ncid_out, varstr, par->length*60, &out_dimid[k]);
         if (status != NC_NOERR){
             logErrDate("%s: nc_def_dim param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             return -1;
@@ -258,6 +263,11 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
             logErrDate("%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             return -1;
         }
+        status = nc_put_att_text(ncid_out, out_varid[k], "_FillValue", 3, "NaN");
+        if (status != NC_NOERR){
+            logErrDate("%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            return -1;
+        }        
     }
     
     /* determine when the first file begins (usually in the hour before the processed hour) */
@@ -307,10 +317,11 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
 
     float diff, diff2;
     float nan=NAN;
-    long ins_nan=0;
+    long ins_nan=0, ins_allnan=0, ins_cnt=0;
+    
     // for as many input files as given -------------
     int varid[MAX_CH_NUMBER];
-    for (j=0; j<count; j++){
+    for (j=0; j<count && j*par->length+ins_allnan < par->length*count; j++){
         sprintf(file_in,"%s%ld.nc",      file_in_dir,(fnts_p+j)->tv_sec);
 
         status = nc_open(file_in, NC_NOWRITE, &ncid_in);
@@ -321,7 +332,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         }
     
         //print filename
-        printf("\n%ld.%06ld\t",(fnts_p+j)->tv_sec,(fnts_p+j)->tv_nsec/1000);
+        printf("\n%2d. %ld.%06ld\t",j+1,(fnts_p+j)->tv_sec,(fnts_p+j)->tv_nsec/1000);
         
         //calculate jitter
         if (j>0){ //difference make no sense at the first file
@@ -339,11 +350,14 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
                 ins_nan=(long)round(diff*par->sps*1E-9);
                 printf("inserting %ld NaN (%lds)",ins_nan,(long)round(ins_nan/(float)par->sps));
                 nodelete=1;
-                //TODO TODO
+                //update inserted values counter
+                ins_cnt+=ins_nan;
             }            
             
         }
         
+        //update inserted values counter
+        ins_cnt+=par->length;
         
         for (k=0; k<par->chnumber; k++){ //for as many channels as in file (1,2,4 or 8)
             sprintf(varstr,"%s%d","ch",k+1); //ch1, ch2 ...
@@ -353,14 +367,25 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
                 __func__, varstr, file_in, nc_strerror(status));
                 return -1;
             }
-
-            status = nc_get_var_float(ncid_in, varid[k], (chp[k]+j*par->length));
+            
+            //inserting NaN in case of missing files or time gaps
+            for (m=0; m<ins_nan; m++){
+                *(chp[k]+ins_allnan+m+j*par->length)=nan;
+            }
+            // update variable indicating the inserted nans (ins_allnan)
+            ins_allnan+=ins_nan;
+            //clear the indicator to insert nans (since it is the same for all channels)
+            ins_nan=0;
+            
+            status = nc_get_var_float(ncid_in, varid[k], (chp[k]+j*par->length + ins_allnan));
             if (status != NC_NOERR){
                 logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
                 __func__, varstr, file_in, nc_strerror(status));
                 return -1;
             }
         }
+
+        
 #ifdef DEBUG        
         printf("%2d. input file read (name: %s, ch: %d)\n",j,file_in,k);
 #endif
@@ -368,7 +393,8 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         CHECK_NC_ERR("nc_close inputs");
     } // end for as many input files
     printf("\n");
-    
+    //TODO correct by start moved
+    printf("info: inserted values: %ld/%d\n ",ins_cnt,par->length*60);
     
     /* Correction of the beginning
      * for the first file it might be neccessary to add only the last 'first_file_samp' amount
@@ -385,7 +411,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
      */
      
     size_t s_start[] = {0};
-    size_t s_count[] = {par->length*count};    
+    size_t s_count[] = {par->length*count + ins_allnan};    
         
     // assign variable data 
     for (k=0; k<par->chnumber; k++){ //for as many channels

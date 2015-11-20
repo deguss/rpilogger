@@ -226,7 +226,7 @@ int write_netcdf(){ // generate BINARY file: *.nc (netCDF)
 
     }
     return 0;
-}
+} 
 
 double difftime_hr(const struct timespec *t2, const struct timespec *t1)
 {
