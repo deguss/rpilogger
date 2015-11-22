@@ -25,7 +25,7 @@
 
 void deletefile(const char *fl);
 void filelock(const char *filelock);
-void get_uid_gid(const char *user, long *uid, long *gid);
+void get_uid_gid(const char *user, uid_t *uid, gid_t *gid);
 
 //-------------- EXTERNAL FUNCTION PROTOTYPES --------------------------
 

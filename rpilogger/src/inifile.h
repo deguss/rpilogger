@@ -44,7 +44,7 @@ int max(int x, int y);
 int isValueInIntArr(int val, const int *arr, int size);
 
 //--------------- MACROS -----------------------------------------------
-#define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
+//#define NELEMS(x)  ((int)(sizeof(x) / sizeof(x[0])))
 
 //-------------- EXTERNAL FUNCTION PROTOTYPES --------------------------
 
@@ -57,16 +57,17 @@ extern int pga[];
 extern int auto_pga;
 extern int pga_updelay;
 extern char datafiledir[];
+extern char file_user[];
 extern const float overvoltage;
 
 extern const int SPSv[];
-extern const size_t SPSv_count;
+extern const int SPSv_count;
 
-extern const uint16_t SPSa[];
+extern const int16_t SPSa[];
 extern const float PGAv[];
 //extern const uint16_t PGAa[];
 
-extern const char user[];
 
 
-extern void get_uid_gid(const char *user, long *uid, long *gid);
+
+extern void get_uid_gid(const char *user, uid_t *uid, gid_t *gid);

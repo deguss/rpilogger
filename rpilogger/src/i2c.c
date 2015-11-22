@@ -34,7 +34,6 @@ int i2c_write(int fd, int addr, int reg, int data)
 {
     uint8_t buf[3];
 
-    pthread_mutex_lock(&a_mutex);
     i2c_select(fd, addr);
  
     buf[0] = reg & 0xFF;
@@ -42,10 +41,8 @@ int i2c_write(int fd, int addr, int reg, int data)
     buf[2] = data & 0x00FF;
     if (write(fd, buf, 3) != 3) {
         logErrDate("%s: failed to write to register %02X!\n",__func__,reg);
-        pthread_mutex_unlock(&a_mutex);
         return -1;
     }
-    pthread_mutex_unlock(&a_mutex);
     return 0;
 }
 
@@ -53,21 +50,17 @@ int i2c_read(int fd, int addr, int reg)
 {
     uint8_t buf[2];
 
-    pthread_mutex_lock(&a_mutex);
     i2c_select(fd, addr);
 
     buf[0] = reg & 0xFF;
     if (write(fd, buf, 1) != 1) {
         logErrDate("%s: failed to write to register %02X!\n",__func__,reg);
-        pthread_mutex_unlock(&a_mutex);
         return -1;
     }
     if (read(fd, buf, 2) != 2) {
         logErrDate("%s: failed to read from register %02X!\n",__func__,reg);
-        pthread_mutex_unlock(&a_mutex);
         return -1;
     }
-    pthread_mutex_unlock(&a_mutex);
     return (int16_t)buf[0]*256 + (uint16_t)buf[1];
 }
 

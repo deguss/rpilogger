@@ -47,10 +47,17 @@
 //--------------- DEFINES and VARIABLES --------------------------------
 
 // --- global variables
-int done=0, init=1, pga_uf=0, nodaemon=0;
+//TODO consider using volatile atomic_t for flags
+int done=0, init=1, pga_uf=0, daemon_f=0, debug=0;
 int SPSc, spsadc, sampl, piter;
 float sps;
-char datafiledir[200];
+char datafiledir[255];
+
+/* FIXME. it is neccessary to initialize file_user somehow, else there 
+ * is no way to set owner at creation.
+ */
+char file_user[50]="pi"; 
+
 int pga[4];
 int auto_pga;
 int pga_updelay; 
@@ -75,21 +82,21 @@ struct data_struct {
  * 
  */
  
-char ini_name[100];
+char ini_name[50];
 FILE *fp_log; 
 
+
 #define LOGFILE "ads.log"
+#define HISTFILE "histog.json"
 #define LOGDIR "log"
-#define CONFIGFILE "daq.cfg"
+#define CONFIGFILE "ads.conf"
 #define FILELOCK "/var/run/ads.pid"
-#define USER "pi"
-const char user[]=USER;
 #define GROUP "pi"
 
 
 //--------------- MACROS -----------------------------------------------
 
-#define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
+
 
 
 #define ErrnoCheck(func,cond,retv)  COND_CHECK(func, cond, retv, errno)
@@ -108,16 +115,6 @@ do {                                                                  \
 #define STR(x) STR_HELPER(x)
 
 
-//--------------- PROTOTYPES -------------------------------------------
-void ISRSamplingTimer(int);
-void adjust_pga(int it);
-void getADC_ADS1115(int it);
-float twocompl2float(int value, float pga);
-int isValueInIntArr(int val, const int *arr, int size);
-void stack_prefault(void);
-void print_logo(void);
-int listdir(const char *dir, char *element);
-
 //-------------- EXTERNAL FUNCTIONS AND VARIABLES ----------------------
 
 extern void create_ini_file(char *ini_name);
@@ -134,3 +131,8 @@ extern void print_logo(void);
 extern void print_usage(void);
 extern int listdir(const char *dir, char *element);
 extern void set_latency_target(void);
+
+extern long fsize(char *filename);
+
+extern void sighandler(int signum, siginfo_t *info, void *ptr);
+extern void register_signals(void);

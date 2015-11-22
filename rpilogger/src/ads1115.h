@@ -62,7 +62,7 @@ const float overvoltage=5000.0;
 }                                                             \
 while(0)
 
-#define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
+#define NELEMS(x)  ((int)(sizeof(x) / sizeof(x[0])))
 
 //------------- ADS1115 register defines -------------------------------
 
@@ -111,17 +111,17 @@ while(0)
 
 //sampling rates
 const int SPSv[8] = {8,16,32,64,128,250,475,860};
-const uint16_t SPSa[8] = { ADS_CONF_DR_8, ADS_CONF_DR_16, ADS_CONF_DR_32,
+const int16_t SPSa[8] = { ADS_CONF_DR_8, ADS_CONF_DR_16, ADS_CONF_DR_32,
        ADS_CONF_DR_64, ADS_CONF_DR_128, ADS_CONF_DR_250, ADS_CONF_DR_475,
        ADS_CONF_DR_860};
-const size_t SPSv_count = NELEMS(SPSv);
+const int SPSv_count = NELEMS(SPSv);
 
 //pga rates       
 const float PGAv[6] = {6144.0, 4096.0, 2048.0, 1024.0, 512.0, 256.0};
-const uint16_t PGAa[6] = {ADS_CONF_PGA_6_144V, ADS_CONF_PGA_4_096V,
+const int16_t PGAa[6] = {ADS_CONF_PGA_6_144V, ADS_CONF_PGA_4_096V,
      ADS_CONF_PGA_2_048V, ADS_CONF_PGA_1_024V, ADS_CONF_PGA_0_512V, 
      ADS_CONF_PGA_0_256V};
-const size_t PGAv_count = NELEMS(PGAv);
+const int PGAv_count = NELEMS(PGAv);
 
 
 
