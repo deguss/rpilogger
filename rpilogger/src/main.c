@@ -12,10 +12,19 @@
 
 // TODO if sampling rate lower than 1/60 what is in 1-minute file???
 
+//--------------- PROTOTYPES -------------------------------------------
+static void take_a_sample(struct timespec *tabs);
+static inline long calcdiff_us(struct timespec t1, struct timespec t2);
+static inline void tsnorm(struct timespec *ts);
+static void adjust_pga(int it);
+static void getADC_ADS1115(int it);
+static float twocompl2float(int value, float pga);
+
+
 /* interrupt service routine
  * performs the sampling each 1/sps
  */
-void take_a_sample(struct timespec *tabs) 
+static void take_a_sample(struct timespec *tabs1) 
 { 
     int err = -1;
     static int ov[4]; 
@@ -25,7 +34,7 @@ void take_a_sample(struct timespec *tabs)
     //check if we are at the first sample of the lower or eq. of the upper buffer
     if ((dst.it == 0) || (dst.it == sampl)){
         dst.t2=dst.t1; //store timestamp for processing in t2!
-        clock_gettime(CLOCK_REALTIME, &dst.t1); 
+        dst.t1=*(tabs1);
     }    
     
     //sampling
@@ -42,15 +51,16 @@ void take_a_sample(struct timespec *tabs)
         }
     }
     if (err > -1)
-        printf("WARN: Overvoltage on ch%i! /ch1=%.0f, ch2=%.0f, ch3=%.0f ch4=%.0f/\n",err,dst.data[dst.it][0],dst.data[dst.it][1],dst.data[dst.it][2],dst.data[dst.it][3]);
+        printf("WARN: Overvoltage on ch%i! /ch1=%.0f, ch2=%.0f, ch3=%.0f ch4=%.0f/\n",
+        err+1,dst.data[dst.it][0],dst.data[dst.it][1],dst.data[dst.it][2],dst.data[dst.it][3]);
     
     //if auto gain is selected (from config file), calculate it    
     if (auto_pga)
         adjust_pga(dst.it);
         
-    //if started in debug mode (flag -nodaemon) additional output will be printed    
+    //if started in debug mode (flag --debug) additional output will be printed    
     //  regardless of the sampling rate, once a second
-    if (nodaemon){  
+    if (debug){  
         static int cnt;
         if (++cnt == (int)sps){
             printf("debug: ch1=%+5.0f",dst.data[dst.it][0]);
@@ -113,9 +123,8 @@ static inline long calcdiff_us(struct timespec t1, struct timespec t2)
     return (long)diff;
 }
 
-void getADC_ADS1115(int it) 
+static void getADC_ADS1115(int it) 
 {
-    static int adc1_addr=CFG_ADC1;
     struct timespec tim1, tim2, rem;
     int ret, cfg1;
     float pga1;
@@ -130,15 +139,14 @@ void getADC_ADS1115(int it)
 
     cfg1 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ1_ADC1) | (ADS_CONF_PGA_MASK & PGAa[pga[0]]);
     pga1 = PGAv[pga[0]];
-    i2c_write(fd, adc1_addr, ADS_PTR_CONF, cfg1);     // set config register and start conversion ADS1115       
+    i2c_write(fd, CFG_ADC1, ADS_PTR_CONF, cfg1);     // set config register and start conversion ADS1115       
             
 #if defined(CFG_ADC2) && defined(CFG_SEQ2_ADC2)
-    static int adc2_addr=CFG_ADC2;
     int cfg2;
     float pga2;
     cfg2 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ2_ADC2) | (ADS_CONF_PGA_MASK & PGAa[pga[1]]);
     pga2 = PGAv[pga[1]];
-    i2c_write(fd, adc2_addr, ADS_PTR_CONF, cfg2);
+    i2c_write(fd, CFG_ADC2, ADS_PTR_CONF, cfg2);
 #endif
    
     tim1.tv_sec=0;
@@ -146,20 +154,20 @@ void getADC_ADS1115(int it)
     nanosleep(&tim1, &rem);
 
 
-    //check if A|C got correct config
-    if (cfg1 != (i2c_read(fd, adc1_addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-        printf("adc1: cfg-w: %04X, read: %04X\n",cfg1, i2c_read(fd, adc1_addr, ADS_PTR_CONF));
-        if (cfg1 != (i2c_read(fd, adc1_addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
+    //check if the ADC with addr: CFG_ADC1 got the right configuration
+    if (cfg1 != (i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
+        printf("adc1: cfg-w: %04X, read: %04X\n",cfg1, i2c_read(fd, CFG_ADC1, ADS_PTR_CONF));
+        if (cfg1 != (i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
             logErrDate("Slave 1 returned not the specified configuration. Data transfer from ADC to RPi corrupt!\n");
             exit_all(-1);
         }
     }
 
 #ifdef CFG_ADC2  
-    //check if B|D got correct config
-    if (cfg2 != (i2c_read(fd, adc2_addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-        printf("adc2: cfg-w: %04X, read: %04X\n",cfg2, i2c_read(fd, adc2_addr, ADS_PTR_CONF));
-        if (cfg2 != (i2c_read(fd, adc2_addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
+    //check if the ADC with addr: CFG_ADC2 got the right configuration
+    if (cfg2 != (i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
+        printf("adc2: cfg-w: %04X, read: %04X\n",cfg2, i2c_read(fd, CFG_ADC2, ADS_PTR_CONF));
+        if (cfg2 != (i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
             logErrDate("Slave 2 returned not the specified configuration. Data transfer from ADC to RPi corrupt!\n");
             exit_all(-1);
         }
@@ -172,34 +180,34 @@ void getADC_ADS1115(int it)
     tim2.tv_sec=0;
     tim2.tv_nsec=10000;
     nanosleep(&tim1, &rem);
-    while ((i2c_read(fd, adc1_addr, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {  
+    while ((i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {  
         nanosleep(&tim2, &rem); //wait 10us
     }
 
     // read conversion register adc1_addr and include sign bit
-    ret = i2c_read(fd, adc1_addr, ADS_PTR_CNV);
+    ret = i2c_read(fd, CFG_ADC1, ADS_PTR_CNV);
     dst.data[it][0] = twocompl2float(ret,pga1);
     
 #ifdef CFG_ADC2  
     //check if compleated also on adc2_addr
-    while ((i2c_read(fd, adc2_addr, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {
+    while ((i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {
         nanosleep(&tim2, &rem);
     }
     // read conversion register adc2_addr
-    ret = i2c_read(fd, adc2_addr, ADS_PTR_CNV);
+    ret = i2c_read(fd, CFG_ADC2, ADS_PTR_CNV);
     dst.data[it][1] = twocompl2float(ret,pga2);
 #endif        
 
 }
 
-float twocompl2float(int value, float pga)
+static float twocompl2float(int value, float pga)
 {
     float ret;
     ret = (value > 0x7FFF) ? (float)(value-0xFFFF) : (float)(value); 
     return (ret * pga/32768.0); //mV    
 }
 
-void adjust_pga(int it)
+static void adjust_pga(int it)
 {
     static int sec_rem[4];
     int i;
@@ -239,41 +247,54 @@ int main(int argc, char * argv[])
     char histfile[255];
     dst.t1.tv_sec=0;
     dst.t2.tv_sec=0;
-    long lli=1;
-    long *uid=&lli, *gid=&lli;    
+    uid_t uid;
+    gid_t gid;
     
     //determine executable location based on process ID (pid)
-    pid_t pid;
-    pid = getpid();
+    pid_t pid = getpid();
     char path[255], dest[255];
     sprintf(path, "/proc/%d/exe", pid);
     if (readlink(path, dest, sizeof(path)) == -1){
         perror("readlink");
         exit_all(-1);
     }
-    ppath=dirname(dest);
+    ppath=dirname(dest);    
     //printf("Executable's location: %s\n", ppath);
-    sprintf(logfile,"%s/../%s",ppath,LOGDIR);
-    mkdir_filename(LOGDIR);
-    get_uid_gid(user, uid, gid);
-    chown(logfile, *uid, *gid);
+    
+    /* ------------ load configuration from ini file --------------- */
+    // (if it returns -1 -> no valid file)
+    sprintf(ini_name,"%s/%s",ppath,CONFIGFILE);
+    if (parse_ini_file(ini_name)) 
+        parse_ini_file(ini_name); //create one
+         
+    sprintf(logfile,"%s/%s",ppath,LOGDIR);
+    mkdir_filename(logfile);
+    get_uid_gid(file_user, &uid, &gid);
+    chown(logfile, uid, gid);
     sprintf(logfile,"%s/%s",logfile,LOGFILE);        
-    sprintf(histfile,"%s/../%s/%s",ppath,LOGDIR,HISTFILE);
+    sprintf(histfile,"%s/%s/%s",ppath,LOGDIR,HISTFILE);
          
      
     if (argc>1){
-        if (!strcmp(argv[1],"nodaemon") || !strcmp(argv[1],"-nodaemon") ||
-            !strcmp(argv[1],"--nodaemon")){
-            nodaemon=1;
+        if (!strcmp(argv[1],"daemon") || !strcmp(argv[1],"-daemon") ||
+            !strcmp(argv[1],"--daemon")){
+            daemon_f=1;
         }
-        if (!strcmp(argv[1],"help") || !strcmp(argv[1],"-help") || !strcmp(argv[1],"--help")){
+        if (!strcmp(argv[1],"debug") || !strcmp(argv[1],"-debug") ||
+            !strcmp(argv[1],"--debug")){
+            debug=1;
+        }        
+        if (!strcmp(argv[1],"help") || !strcmp(argv[1],"-help") || 
+            !strcmp(argv[1],"--help")){
             print_logo();
             print_usage();
             exit(EXIT_SUCCESS);
         }
     }
-
-    if (!nodaemon){ // --------- Daemonize --------------- (default)
+    
+    set_latency_target();
+    
+    if (daemon_f){ // --------- Daemonize ---------------
         
         pid_t process_id = 0;
         pid_t sid = 0;
@@ -281,21 +302,27 @@ int main(int argc, char * argv[])
         process_id = fork(); // Create child process
         if (process_id < 0){ // Indication of fork() failure
             logErrDate("fork failed!\n");
-            exit(1); // Return failure in exit status
+            exit(EXIT_FAILURE); // Return 1 (failure) in exit status
         }
         if (process_id > 0) { // PARENT PROCESS. Need to kill it.
             printf("Will now detach and go into background!\n");
             printf("redirecting stdout and stderr to: %s\n",logfile);
             logErrDate("Main daemon started with pid: %ld\n",(long)process_id);
-            exit(0); // return success in exit status
+            exit(EXIT_SUCCESS); // Return (0) success in exit status
         }
+        
         umask(0); //unmask the file mode
+        
         sid = setsid(); //set new session
-        if(sid < 0){
-            exit(1); // Return failure
+        if (sid < 0){
+            exit(EXIT_FAILURE); // Return (1) failure
         }
-        // Change the current working directory to root.
-        //chdir("/");
+        
+        /* Change the current working directory */
+        if ((chdir("/")) < 0) {
+            exit(EXIT_FAILURE); // Log the failure
+        }
+        
         // Close stdin. stdout and stderr
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
@@ -308,8 +335,8 @@ int main(int argc, char * argv[])
         setvbuf(fp_log, NULL, _IOLBF, 1024); // line buffering
         dup2(fileno(fp_log), fileno(stderr)); //redirect stderr to file
     }
-    get_uid_gid(user, uid, gid);
-    chown(logfile, *uid, *gid);
+    get_uid_gid(file_user, &uid, &gid);
+    chown(logfile, uid, gid);
     chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     
     filelock(FILELOCK);    
@@ -321,10 +348,9 @@ int main(int argc, char * argv[])
     print_logo();
     
     //register signal handlers
-    signal(SIGINT, exit_all); //e.g. Ctrl+c
-    signal(SIGTERM, exit_all); //e.g. pkill
+    register_signals();
 
-    // find out interface name
+    /* ----------- find out i2c interface name ------------------- */
     // /dev/i2c-0 (Raspberry PI Model A)
     // /dev/i2c-1 (Raspberry PI Model B, PI 2)
 
@@ -344,11 +370,6 @@ int main(int argc, char * argv[])
 #endif
     close(fd);
 
-    
-    sprintf(ini_name,"%s/%s",ppath,CONFIGFILE);
-
-    if (parse_ini_file(ini_name)) //if it returns -1 -> no valid file
-        parse_ini_file(ini_name);
     
     int rc;
     rc=pthread_attr_init(&p_attr);
@@ -448,24 +469,27 @@ int main(int argc, char * argv[])
         
         take_a_sample(&tabs);
         
-        //statistics makes no sense for the first loop
-        if (cnt++==0)
-            continue;
-        //handle overflow
-        if (cnt == __LONG_LONG_MAX__)
-            cnt = 1;
-            
-        //calculate jitter (difference to nominal value)
-        diff = tper.tv_sec*1E6 + tper.tv_nsec/1E3 - calcdiff_us(tm1,tm2);
-        //printf("abs time: %ld.%09ld\n",tabs.tv_sec, tabs.tv_nsec);        
-        //fprintf(fp,"%d,",(int)diff);
+        if (debug){
+            //statistics makes no sense for the first loop
+            if (cnt++==0)
+                continue;
+            //handle overflow
+            if (cnt == __LONG_LONG_MAX__)
+                cnt = 1;
+                
+            //calculate jitter (difference to nominal value)
+            diff = tper.tv_sec*1E6 + tper.tv_nsec/1E3 - calcdiff_us(tm1,tm2);
+            fprintf(fp,"%d,",(int)diff);
         
-        //termination
-        //if (cnt >= 70*sps)
-        //    done = 1;
+            //termination 1 minute
+            if (cnt >= 130*sps){
+                done = 1;
+                printf("TERMINATION (debug mode). Check histogram file %s\n",HISTFILE);
+            }
+        }
     
     }
-    //fseek(fp,-1,SEEK_CUR);
+    fseek(fp,-1,SEEK_CUR); //remove last comma
     fputs(" ",fp);
     fclose(fp);   
     

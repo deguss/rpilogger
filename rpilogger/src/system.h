@@ -64,6 +64,8 @@
 
 
 //--------------- PROTOTYPES -------------------------------------------
+void sighandler(int signum, siginfo_t *info, void *ptr);
+void register_signals(void);
 void exit_all(int sig);
 int mkdir_filename(const char *dir_name);
 long fsize(char *filename);
@@ -79,3 +81,4 @@ extern void logErrDate(const char* format, ...);
 extern int done;
 extern pthread_t  p_thread;
 extern FILE *fp_log; 
+//extern struct sigaction sigact;

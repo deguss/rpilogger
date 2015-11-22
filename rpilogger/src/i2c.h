@@ -20,7 +20,7 @@
 #include <linux/i2c-dev.h> // I2C bus definitions
 #include <time.h>
 #include <sys/time.h>
-#include <pthread.h>  //threading, link with -lpthread
+//#include <pthread.h>  //threading, link with -lpthread
 
 
 //--------------- DEFINES and VARIABLES --------------------------------
@@ -32,5 +32,4 @@ int i2c_write(int fd, int addr, int reg, int data);
 int i2c_read(int fd, int addr, int reg);
 
 //-------------- EXTERNAL FUNCTION PROTOTYPES --------------------------
-extern pthread_mutex_t a_mutex;
 extern void logErrDate(const char* format, ...);

@@ -1,0 +1,102 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:         opendatalogger
+# Required-Start:   $remote_fs $syslog $time 
+# Required-Stop:    $remote_fs $syslog $time
+# Default-Start:    2 3 4 5
+# Default-Stop:     0 1 6
+# Short-Description:    OpenDataLogger sampling program
+### END INIT INFO
+
+
+NAME="ads"
+SCRIPT="opendatalogger"
+DESC="OpenDataLogger sampling daemon"
+DAEMON="/opt/opendatalogger/${NAME}"
+PIDFILE="/var/run/${NAME}.pid"
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+LOGFILE="/var/log/user.log"
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
+. /lib/lsb/init-functions
+
+#if already running, continue, else exit here and now
+test -x "${DAEMON}" || exit 0
+
+if [ ! -e "${LOGFILE}" ]
+then
+    touch "${LOGFILE}"
+    chmod 640 "${LOGFILE}"
+    chown root:adm "${LOGFILE}"
+fi
+
+do_start()
+{
+    log_daemon_msg "Starting ${DESC}" "${NAME}"
+    
+    start-stop-daemon --start --oknodo --name ${NAME} --background --exec ${DAEMON} -- "--daemon"
+    
+    log_end_msg $?
+}
+
+do_stop()
+{
+    log_daemon_msg "Stopping ${DESC}" "${NAME}"
+    
+    start-stop-daemon --stop --oknodo --name ${NAME} --exec ${DAEMON}
+    
+    log_end_msg $?
+    
+    rm -f ${PIDFILE}
+    pkill ^ads$    
+}
+
+case "${1}" in
+    start)
+        do_start
+        ;;
+
+    stop)
+        do_stop
+        ;;
+
+    restart)
+        do_stop
+        do_start     
+        ;;
+
+    status)
+        if pgrep ^ads$ >/dev/null 2>&1
+        then
+            log_daemon_msg "${DESC} ${NAME}" "is running"
+            log_end_msg 0
+            exit 0
+        else
+            log_daemon_msg "${DESC} ${NAME}" "is not running"
+            log_end_msg 1
+
+            #remove PID file if not running anymore
+            PID="$(cat ${PIDFILE} 2>/dev/null)" || true
+        
+            if [ ! -f ${PIDFILE} ] || [ -z "${PID}" ]         
+            then
+                rm -f ${PIDFILE}
+                exit 3
+            fi
+            exit 1
+        fi
+        
+        ;;
+        
+    reload|force-reload)
+        echo "Usage: /etc/init.d/${SCRIPT} {start|stop|restart|status}"
+        exit 0
+        ;;
+    *)
+        echo "Usage: /etc/init.d/${SCRIPT} {start|stop|restart|status}"
+        exit 0
+        ;;
+esac
+
+exit 0

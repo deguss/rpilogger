@@ -53,7 +53,8 @@ all: $(OBJECTS)
 	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
 	@if test -e build/$(TARGET); then \
 echo -e "$(OK_COLOR)[OK] all done$(NO_COLOR)"; \
-echo -e "$(WARN_COLOR)please run make install$(NO_COLOR)"; \
+echo "to verify correct behaviour run    sudo build/ads --debug"; \
+echo "if everything fine run             sudo make install"; \
 else \
 echo -e "$(ERROR_COLOR)compilation failed$(NO_COLOR)"; \
 fi
@@ -93,13 +94,19 @@ ifneq ($(user),root)
 	@exit -1
 endif
 	@echo "installing..."
-	cp -r build $(DEPLOY)
+	
+#install to /opt/opendatalogger
+	mkdir -p $(DEPLOY)
+	cp -r build/. $(DEPLOY)/
+	chmod 0500 $(DEPLOY)/$(TARGET)
+
+#install init script to /etc/init.d/	
+	cp ../conf/etc/init.d/opendatalogger /etc/init.d/opendatalogger
+	update-rc.d opendatalogger defaults
+	ls -l /etc/rc?.d/*opendatalogger
 	
 	@echo -e "$(OK_COLOR)[OK]$(NO_COLOR)"
-	@echo "test data logging by "
-	@echo "    /opt/opendatalogger/$(TARGET) --nodaemon"
-	@echo "or start the service by"
-	@echo "    /etc/init.d/opendatalogger start"
+	@echo "start the service by          sudo /etc/init.d/opendatalogger start"
 
 
 uninstall: 
@@ -108,8 +115,12 @@ ifneq ($(user),root)
 	@exit -1
 endif
 	@echo "uninstalling..."
-	@echo "not yet implemented"
-
+#remove /opt/opendatalogger
+	rm -r $(DEPLOY)
+	
+#remove init script	
+	rm -f /etc/init.d/opendatalogger
+	update-rc.d -f opendatalogger remove
 	
 .PHONY: all debug gcov clean install uninstall
 	

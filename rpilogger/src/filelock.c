@@ -77,7 +77,7 @@ void filelock(const char *filelock)
 }
 
 
-void get_uid_gid(const char *user, long *uid, long *gid)
+void get_uid_gid(const char *user, uid_t *uid, gid_t *gid)
 {
     struct passwd pwd;
     struct passwd *result;
@@ -106,6 +106,6 @@ void get_uid_gid(const char *user, long *uid, long *gid)
         }
         exit(EXIT_FAILURE);
     }
-    *uid = (long)pwd.pw_uid;
-    *gid = (long)pwd.pw_gid;
+    *uid = pwd.pw_uid;
+    *gid = pwd.pw_gid;
 }

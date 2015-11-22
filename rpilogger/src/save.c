@@ -7,20 +7,8 @@
  *   This software is licensed under the GNU General Public License.
  *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
  */
- 
-int mkdir_filename(const char *dir_name);
-void *thread_datastore(void * p);
 
-int write_netcdf();
-double difftime_hr(const struct timespec *t1, const struct timespec *t2);
-
-pthread_mutex_t a_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t got_request = PTHREAD_COND_INITIALIZER;
-pthread_t  p_thread;       // thread's structure                    
-pthread_attr_t p_attr;
-
-//extern void get_uid_gid(const char *user, long *uid, long *gid);
-
+//--------------- MACROS -----------------------------------------------
 #define CHECK_NC_ERR(strr) \
 do { \
     if (status != NC_NOERR){ \
@@ -29,8 +17,22 @@ do { \
     } \
 } while(0);
 
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wunused-parameter"
+ 
+//--------------- PROTOTYPES ------------------------------------------- 
+int mkdir_filename(const char *dir_name);
+void *thread_datastore(void * p);
+int write_netcdf();
+double difftime_hr(const struct timespec *t1, const struct timespec *t2);
+
+pthread_mutex_t a_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t got_request = PTHREAD_COND_INITIALIZER;
+pthread_t  p_thread;       // thread's structure                    
+pthread_attr_t p_attr;
+
+
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 //--------------------------------------------------------------------------------------------------
 void *thread_datastore(void * p){ 
 //--------------------------------------------------------------------------------------------------
@@ -44,12 +46,9 @@ void *thread_datastore(void * p){
     rc = pthread_sigmask(SIG_SETMASK, &set, NULL);
         PthreadCheck("pthread_sigmask", rc);
 
-    /* this thread runs as ordinary user (defined in USER) instead of root
-     * regardless of invoking with sudo. All files written will have
-     * USER owner and USER group
-     */
-    long uid, gid;
-    get_uid_gid(user, &uid, &gid);
+    uid_t uid;
+    gid_t gid;
+    get_uid_gid(file_user, &uid, &gid);
     setfsuid(uid);
     setfsgid(gid);
 
@@ -58,7 +57,7 @@ void *thread_datastore(void * p){
     pthread_mutex_lock(&a_mutex);
     while (done==0) {
         pthread_cond_wait(&got_request, &a_mutex);
-        pthread_mutex_unlock(&a_mutex); // ??????????
+        pthread_mutex_unlock(&a_mutex);
         rc = write_netcdf();
         if (rc < 0){
             logErrDate("%s: severe error while writing netcdf file\nExit\n",__func__);
@@ -76,7 +75,7 @@ void *thread_datastore(void * p){
     pthread_mutex_unlock(&a_mutex);
     pthread_exit(NULL);
 }
-//#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
 //----------------------------------------------------------------------
 int write_netcdf(){ // generate BINARY file: *.nc (netCDF)   
@@ -211,14 +210,13 @@ int write_netcdf(){ // generate BINARY file: *.nc (netCDF)
     if (tps.tv_sec==0){ 
         tps = dst.t2; //no memcpy needed
         filesize_c=fsize(fn);
-        logErrDate("File written: %s.   (first file)      size=%ldKiB\n",
-            fn, (filesize_c)/1024);
+        logErrDate("File written: %s, size=%ldKiB\n",
+            fn, lroundf((float)filesize_c/1024.0));
     } 
     else {
         filesize = (unsigned long)fsize(fn);
-        logErrDate("file=%ld.nc, last=%.6fs, total=%.3fs, size=%ldKiB\n",
-            dst.t2.tv_sec, difftime_hr(&dst.t1, &dst.t2), difftime_hr(&dst.t2, &tps),
-             (filesize)/1024);
+        logErrDate("file=%ld.nc, last=%.6fs, size=%ldKiB\n",
+            dst.t2.tv_sec, difftime_hr(&dst.t1, &dst.t2), lroundf((float)filesize/1024.0));
         if (filesize != filesize_c){
             logErrDate("Error! Fize size not consistent!\nExit\n");
             return -1;
