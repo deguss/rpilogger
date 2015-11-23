@@ -47,11 +47,12 @@ void create_ini_file(char *ini_name)
 
     /* since sampling process runs as file_user (pi) modify permissions */
     get_uid_gid(file_user, &uid, &gid);
-    if (chown(ini_name, uid, gid) || chmod(ini_name, S_IRUSR | S_IWUSR | 
-    S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)){
-        logErrDate("%s: chown, chmod failed for %s!",__func__,ini_name);
+    chown(ini_name, uid, gid);
+    chmod(ini_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    /* TODO
+       logErrDate("%s: chown, chmod failed for %s!",__func__,ini_name);
         exit_all(-1);
-    }
+    } */
 }
 
 

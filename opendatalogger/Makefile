@@ -97,13 +97,19 @@ endif
 	
 #install to /opt/opendatalogger
 	mkdir -p $(DEPLOY)
-	cp -r build/. $(DEPLOY)/
+	cp build/$(TARGET) $(DEPLOY)/$(TARGET)
+	cp build/buildinfo $(DEPLOY)/buildinfo
+	cp build/flaginfo $(DEPLOY)/flaginfo
+	cp build/gccinfo $(DEPLOY)/gccinfo
 	chmod 0500 $(DEPLOY)/$(TARGET)
 
 #install init script to /etc/init.d/	
 	cp ../conf/etc/init.d/opendatalogger /etc/init.d/opendatalogger
 	update-rc.d opendatalogger defaults
 	ls -l /etc/rc?.d/*opendatalogger
+	
+#remove build
+	#rm -r -f build
 	
 	@echo -e "$(OK_COLOR)[OK]$(NO_COLOR)"
 	@echo "start the service by          sudo /etc/init.d/opendatalogger start"
@@ -115,6 +121,8 @@ ifneq ($(user),root)
 	@exit -1
 endif
 	@echo "uninstalling..."
+	/etc/init.d/opendatalogger stop	
+	
 #remove /opt/opendatalogger
 	rm -r $(DEPLOY)
 	
