@@ -3,7 +3,7 @@
 # There is no guarantee to prevent the user to escape the rules!
 
 alias sudo='sudo '
-alias shutdown='echo "not allowed"'
+#alias shutdown='echo "not allowed"'
 alias poweroff='echo "not allowed"'
 alias halt='echo "not allowed"'
 
