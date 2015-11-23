@@ -1,7 +1,7 @@
 /boot/config.txt
 /etc/ntp.conf
-/etc/resolv.conf
 /etc/vsftpd.conf
+/etc/inputrc
 /etc/default/watchdog
 /etc/watchdog.conf
 /etc/modprobe.d/watchdog.conf
