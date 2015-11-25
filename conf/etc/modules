@@ -5,6 +5,6 @@
 # Parameters can be specified after the module name.
 
 i2c-dev
-#bcm2708_wdog
+bcm2708_wdog
 # enable following line if you have gps with pps signal
-#pps-gpio
+pps-gpio

@@ -1,3 +1,1 @@
-LOCATION="Please provide a meaningful location info (/etc/environment)"
-LANGUAGE="en_GB.UTF-8"
-LC_ALL="en_GB.UTF-8"
+LOCATION="please provide a meaningful location info in /etc/environment"
