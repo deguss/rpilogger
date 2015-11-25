@@ -7,11 +7,12 @@ for i in "${lines[@]}"; do
     LF=$(echo $i | cut -c 2-)
     echo -ne "$LF \t<-> $i \t"
     touch $i
-    DIFF=$(diff $LF $i)
+    DIFF=$(git diff $LF $i)
     if [ "$DIFF" == "" ]; then
         echo '[IDENT]'
     else
-        echo -e "\n$DIFF\n"
+        #echo -e "\n$DIFF\n"
+        git diff $LF $i
         read -p "overwrite $i (y/n)? " choice
         case "$choice" in 
           y|Y ) 
