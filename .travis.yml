@@ -5,7 +5,7 @@ compiler:
  - gcc
 before_install:
  # remove binary
- - cd rpilogger
+ - cd opendatalogger
  - make clean
  # Install necessary packages from apt-get
  - sudo apt-get install netcdf-bin libnetcdf-dev
@@ -17,6 +17,7 @@ after_success:
  #- "./misc/deploy_code.sh"
  # Build the documentation and upload it to SF
  #- "./misc/publish_html.sh"
+
 notifications:
 # recipients:
 #    - builds@acadotoolkit.org
