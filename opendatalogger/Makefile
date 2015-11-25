@@ -94,6 +94,7 @@ ifneq ($(user),root)
 	@exit -1
 endif
 	@echo "installing..."
+	test -e /etc/init.d/opendatalogger && /etc/init.d/opendatalogger stop	
 	
 #install to /opt/opendatalogger
 	mkdir -p $(DEPLOY)
