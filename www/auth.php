@@ -106,45 +106,15 @@ if (isset($_POST['submit'])){
         $stream = ssh2_exec($connection, '\sudo \shutdown -r +5 "http: reboot in 5min" &'); //no return value reading possible
         $ans.='<br />'.'System will reboot shortly';
     }
-
-    elseif ($_POST['submit']=="submit_tailf-server"){
-        $stream = ssh2_exec($connection, 'sudo svc -d /etc/service/wsserver && sudo svc -d /etc/service/wsserver/log'); 
-        sleep(2);
-        $stream = ssh2_exec($connection, 'sudo svc -u /etc/service/wsserver/log && sudo svc -u /etc/service/wsserver/');
-        $ans.='<br />'.stream_get_contents($stream);
-    }
-
     elseif ($_POST['submit']=="submit_ads"){
-        //KILL
-        $stream = ssh2_exec($connection, 'sudo pkill ^ads$'); //no return value reading possible
-        usleep(500000);
-        //CHECK
-        $stream = ssh2_exec($connection, 'pgrep ^ads$');
-        stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
-        if (stream_get_contents($stream))
-            die('<font color=red>could not kill ads!</font>');
-        //START
-        $stream = ssh2_exec($connection, 'sudo '. $path.'/ads &');
-        usleep(500000);
-        //CHECK
-        $stream = ssh2_exec($connection, 'pgrep ^ads$');
-        stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO);
-
-        $ans.='<br />'.'datalogger '.$path.'/ads started, pid: '.stream_get_contents($stream);
+        $stream = ssh2_exec($connection, 'sudo /etc/init.d/opendatalogger restart'); 
+		stream_set_blocking($stream, true);
+		$stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
+        $ans.='<br />'.$stream_out;
     }
 
     elseif ($_POST['submit']=="submit_ntp"){
         $stream = ssh2_exec($connection, 'sudo /etc/init.d/ntp restart'); 
-        stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
-
-        $ans.='<br />'.stream_get_contents($stream);
-    }
-
-    elseif ($_POST['submit']=="submit_postgres"){
-        $stream = ssh2_exec($connection, 'sudo /etc/init.d/postgresql restart'); 
         stream_set_blocking($stream, true);
         $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
 

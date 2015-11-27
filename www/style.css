@@ -9,16 +9,16 @@
     font-size: 1em;
     border-bottom: 1px solid gray;
     padding: 2px 15px 2px 15px; /* top right */
-    background-color: #58FA58; /*green*/
+    background-color: Chartreuse; /*green*/
 }
 
 #proc_table tr.stopped td {
     /*color: #000000;*/
-    background-color: #FA5858; /*red*/
+    background-color: #FFCCCC; /*red*/
 }
 #proc_table tr.info td {
     /*color: #000000;*/
-    background-color: #FFFF7F;
+    background-color: #FFFF7F; /*yellow*/
 }
 
 #info_table {

@@ -1,41 +1,42 @@
 #!/usr/bin/python -u
 
-_LOCATION_IN = "../data/tmp"
+_LOCATION_IN = "/home/pi/data/tmp"
+_LOCATION_CHARTS = "/home/pi/www/charts"
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import os
 
 ch1=np.zeros(1000*60,dtype='float32')
 ch2=np.zeros(1000*60,dtype='float32')
 t=np.zeros(1000*60,dtype='float32')
 
 def readfiles():
-    import os, re, time
+    import re, time
     from datetime import datetime as datetime
     import netcdf    
-    global t, ch1, ch2
+    global t, ch1, ch2, sps, sampl, title
     
     files = sorted(os.listdir(_LOCATION_IN))
-    d=1
-    while not re.search('[1-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].nc',files[-d]):
-        d+=1
-    fn=int(files[-d][:-3]) #remove ending ".nc" and convert to seconds
+    d=len(files)
+    fn=int(files[-1][:-3]) #remove ending ".nc" and convert to seconds
     ts1=time.gmtime(fn)    #broken down time format
-    print "%d files found, most recent: %d.nc (%s)" % (len(files), fn, time.strftime("%F %T %z",ts1))
+    title=time.strftime("%F %T %z",ts1)
+    print "%d files found, most recent: %d.nc (%s)" % (len(files), fn, title)
     
     try:
-        fid = netcdf.Dataset(os.path.join(_LOCATION_IN,files[-d]), 'r')
+        fid = netcdf.Dataset(os.path.join(_LOCATION_IN,files[-1]), 'r')
     except:
-        print "Unexpected error while reading file: %s \n %s" % (files[-d])
+        print "Unexpected error while reading file: %s \n %s" % (files[-1])
         return -1
     else:
         start = getattr(fid,'start')      #some string
-        sps = getattr(fid,'sps')          #sampling rate float
-        #import pdb; pdb.set_trace()                
+        sps = int(getattr(fid,'sps'))     #sampling rate -> to int
         sampl = fid.variables['ch1'].size 
         units = fid.variables['ch1'].units
         print "\tstart time         = %s" % (start)
         print "\tsamples            = %d" % (sampl)
-        print "\tsampling frequency = %f" % (sps)
+        print "\tsampling frequency = %d" % (sps)
         
         ch1=fid.variables['ch1'][:]
         ch2=fid.variables['ch2'][:]
@@ -43,34 +44,89 @@ def readfiles():
         fid.close()
         
 def plot_time():
-    global t, ch1, ch2
+    global t, ch1, ch2, sps, sampl, title
     
-    plt.plot(t, ch1)
-    plt.xlabel('time (s)')
+    plt.clf()
+    
+    ax1=plt.subplot(211)
+    plt.plot(t, ch1, color='red')
     plt.ylabel('voltage (mV)')
-    plt.title('ch1')
     plt.grid(True)
-    plt.savefig("ch1.png")
-    plt.show()
+    plt.title('time plot from '+title+'' )    
+    
+    
+    
+    ax2=plt.subplot(212)
+    plt.plot(t, ch2, color='green')
+    plt.xlabel('time (s)')
+    plt.grid(True)
+    
+    ym=np.zeros(2)
+    ym[0]=min(ax1.get_ylim()[0], ax2.get_ylim()[0])
+    ym[1]=max(ax1.get_ylim()[1], ax2.get_ylim()[1])
+    
+    ax1.set_ylim(ym)
+    ax2.set_ylim(ym)
+    
+    fig=plt.gcf();
+    f_dpi=fig.get_dpi()
+    fig.set_size_inches(1200.0/f_dpi, 500.0/f_dpi);
+    
+    plt.savefig(os.path.join(_LOCATION_CHARTS,"last_time.png"), dpi=96, bbox_inches='tight')
+    plt.clf()
+    print "plotting time series finished"
 
 def plot_psd():
-    dt = 0.01
-    t = np.arange(0, 10, dt)
-    nse = np.random.randn(len(t))
-    r = np.exp(-t/0.05)
+    global t, ch1, ch2, sps, sampl, title
+    
+    plt.clf()
+    nfft=1024 #int(2**np.ceil(np.log2(sampl)));
+    (Pxx, freqs)=plt.psd(ch1, NFFT=nfft, Fs=sps, window=mlab.window_hanning)
+    (Pxx, freqs)=plt.psd(ch2, NFFT=nfft, Fs=sps, window=mlab.window_hanning)
+    plt.legend(['ch1', 'ch2'], loc='upper right')
+    plt.title('Power Spectral Density (NFFT='+str(nfft)+', Fs='+str(sps)+', win=hann)')
+    
+    plt.savefig(os.path.join(_LOCATION_CHARTS,"last_psd.png"))
+    plt.clf()
+    print "plotting psd finished"
 
-    cnse = np.convolve(nse, r)*dt
-    cnse = cnse[:len(t)]
-    s = 0.1*np.sin(2*np.pi*t) + cnse
+def plot_psd_resampled():
+    global t, ch1, ch2, sps, sampl, title
+    
+    plt.clf()
+    nfft=2048 #int(2**np.ceil(np.log2(sampl)));
 
-    plt.subplot(211)
-    plt.plot(t, s)
-    plt.subplot(212)
-    plt.psd(s, 512, 1/dt)
+    ax1=plt.subplot(211)
+    (Pxx, freqs)=plt.psd(ch1[::5], NFFT=nfft, Fs=sps/5, window=mlab.window_hanning, color='red')
+    plt.title('Power Spectral Density (NFFT='+str(nfft)+', Fs='+str(sps/5)+', win=hann)')
+    plt.xlabel('')
 
-    plt.show()
+    ax2=plt.subplot(212)
+    (Pxx, freqs)=plt.psd(ch2[::5], NFFT=nfft, Fs=sps/5, window=mlab.window_hanning, color='green')
+    plt.ylabel('')
+    ax2.set_ylim(ax1.get_ylim())
+
+    fig=plt.gcf();
+    f_dpi=fig.get_dpi()
+    #print "dpi: %i" % (f_dpi)
+    
+    #f_size=fig.get_size_inches()
+    #print "figure size in Inches", f_size
+    #print "or pixels %i x %i pixel" % (f_dpi*f_size[0], f_dpi*f_size[1])
+    #fig.set_size_inches([f_size[0]*2, f_size[1]]);
+    
+    fig.set_size_inches(1200.0/f_dpi, 500.0/f_dpi);
+    
+    #f_size=fig.get_size_inches()
+    #print "resized to %i x %i pixel" % (f_dpi*f_size[0], f_dpi*f_size[1])
+
+    
+    plt.savefig(os.path.join(_LOCATION_CHARTS,"last_psd_res.png"), dpi=96, bbox_inches='tight')
+    plt.clf()
+    print "plotting psd_resampled finished"
 
 if __name__ == "__main__":
     readfiles()
     plot_time()
-    plot_psd()
+    #plot_psd()
+    plot_psd_resampled()

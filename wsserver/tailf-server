@@ -1,25 +1,36 @@
 #!/usr/bin/python -u
+
+from datetime import datetime
+import sys, os, time
+
+PORT=50000
+_dirn=os.path.dirname(os.path.realpath(__file__))
+
+print "ws://localhost:"+str(PORT)
+
+if len(sys.argv)>1 and str(sys.argv[1])=="--debug":
+    print "debug mode"
+    
+else:
+    time.sleep(5) #to prevent initv to respawn too fast        
+    
+    #redirect stdin, stdout
+    logfile=os.path.join(_dirn,"log-tailf.log")
+    unbuffered = open(logfile, 'w', 0)
+    sys.stdout = unbuffered
+    sys.stderr = unbuffered
+
+#read in which files to watch
+tailfiles=os.path.join(_dirn,"logfiles.txt")
+logs=[]
+with open(tailfiles) as fl:
+	for line in fl:
+		logs.append('-f')
+		logs.append(line.rstrip('\n'))
+
+
 from twisted.internet import reactor, protocol
 from autobahn.twisted.websocket import WebSocketServerFactory, WebSocketServerProtocol,listenWS
-from datetime import datetime
-import sys
-import time
-#startLogging(sys.stdout) 
-
-PORT='50000'
-
-time.sleep(5) #to prevent initv to respawn too fast
-
-logs = ['/opt/opendatalogger/log/ads.log']
-        #'/var/log/syslog',
-        #'/var/log/daemon.log',
-        #'/var/log/auth.log',
-        #'/var/log/fail2ban.log']
-logarr=[]
-for log in logs:
-    logarr.append('-f')
-    logarr.append(log)
-
 
 class ProcessProtocol(protocol.ProcessProtocol):
     """ I handle a child process launched via reactor.spawnProcess.
@@ -40,8 +51,7 @@ class ProcessProtocol(protocol.ProcessProtocol):
 
 
 class WebSocketProcessOutputterThing(WebSocketServerProtocol):
-    """ I handle a single connected client. We don't need to do much here, simply call the register and un-register
-    functions when needed.
+    """ I handle a single connected client. We don't need to do much here, simply call the register and un-register functions when needed.
     """
     def onOpen(self):
         self.factory.register(self)
@@ -54,16 +64,15 @@ class WebSocketProcessOutputterThing(WebSocketServerProtocol):
 
 
 class WebSocketProcessOutputterThingFactory(WebSocketServerFactory):
-    """ I maintain a list of connected clients and provide a method for pushing a single message to all of them.
-    """
     protocol = WebSocketProcessOutputterThing
 
     def __init__(self, *args, **kwargs):
+        global logs
         WebSocketServerFactory.__init__(self, *args, **kwargs)
         self.clients = []
         self.numClients=0
         self.process = ProcessProtocol(self)
-        reactor.spawnProcess(self.process, "tail", args=logarr, usePTY=True)
+        reactor.spawnProcess(self.process, "tail", args=logs, usePTY=True)
         
 
     def register(self, client):
@@ -84,10 +93,10 @@ class WebSocketProcessOutputterThingFactory(WebSocketServerFactory):
         #import pdb; pdb.set_trace()
         #print "broadcasted for %d clients" %(self.clients.count(self))
 
-
 if __name__ == "__main__":
-    print "Running process tail with multiple args"
-    print "tail " + " ".join(logarr)
-    factory = WebSocketProcessOutputterThingFactory("ws://localhost:%s" % (PORT), debug=False)
+    print "Running process tail with multiple files on port %d" %(PORT)
+    print "tail ".join(logs)
+    factory = WebSocketProcessOutputterThingFactory("ws://localhost:"+str(PORT), debug=False)
     listenWS(factory)
     reactor.run()
+

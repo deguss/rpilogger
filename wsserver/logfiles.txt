@@ -1,0 +1,7 @@
+/var/log/auth.log
+/var/log/daemon.log
+/var/log/fail2ban.log
+/var/log/user.log
+/var/log/vsftpd.log
+/home/pi/wsserver/online.log
+/opt/opendatalogger/log/ads.log
