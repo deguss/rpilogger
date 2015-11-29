@@ -4,10 +4,12 @@
  extip                     # shows external IP (ipecho.net)
  nmap -sP 10.42.0.1-255    # network scan for the given range
  nmap -sT -O <IP>          # check listening ports
- tail -f /opt/opendatalogger/ads.log     # shows data logger output live
+ tail -f /opt/opendatalogger/log/ads.log   # shows data logger output live
  ntpq -p                   # checks network time protocol synchronization
  htop                      # task manager / cpu monitoring
  pstree                    # shows running processes
+ newest                    # filename of the most recent file in a dir
+ oldest                    # filename of the oldest file (aliases ls -t)
  sudo ppstest /dev/pps0    # GPS puls per second test tool
  cgps -s                   # GPS monitor toools
  git remote update         # check if datalogger is up-to-date

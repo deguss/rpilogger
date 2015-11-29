@@ -1,11 +1,13 @@
 #!/usr/bin/python -u
+from tendo import singleton
+me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
 
 _LOCATION_IN = "/home/pi/data/tmp"
 _LOCATION_CHARTS = "/home/pi/www/charts"
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
-import os
+import os, sys
 
 ch1=np.zeros(1000*60,dtype='float32')
 ch2=np.zeros(1000*60,dtype='float32')
@@ -42,6 +44,7 @@ def readfiles():
         ch2=fid.variables['ch2'][:]
         t=np.linspace(0,60,sampl)
         fid.close()
+	print "file read"
         
 def plot_time():
     global t, ch1, ch2, sps, sampl, title
@@ -124,9 +127,11 @@ def plot_psd_resampled():
     plt.savefig(os.path.join(_LOCATION_CHARTS,"last_psd_res.png"), dpi=96, bbox_inches='tight')
     plt.clf()
     print "plotting psd_resampled finished"
+    
 
 if __name__ == "__main__":
     readfiles()
     plot_time()
     #plot_psd()
     plot_psd_resampled()
+    sys.stdout.flush()

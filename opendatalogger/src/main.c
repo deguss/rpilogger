@@ -50,14 +50,17 @@ static void take_a_sample(struct timespec *tabs1)
             }
         }
     }
-    if (err > -1)
-        printf("WARN: Overvoltage on ch%i! /ch1=%.0f, ch2=%.0f, ch3=%.0f ch4=%.0f/\n",
-        err+1,dst.data[dst.it][0],dst.data[dst.it][1],dst.data[dst.it][2],dst.data[dst.it][3]);
+    
+    //if there is an overvoltage, print
+    if (err > -1){
+        printf("WARN: Overvoltage on ch%i! \tch%i=%.0f", err+1, err+1, dst.data[dst.it][err]);
+    }
     
     //if auto gain is selected (from config file), calculate it    
-    if (auto_pga)
+    if (auto_pga){
         adjust_pga(dst.it);
-        
+    }
+    
     //if started in debug mode (flag --debug) additional output will be printed    
     //  regardless of the sampling rate, once a second
     if (debug){  
