@@ -677,7 +677,7 @@ int main(int argc, char * argv[])
      * names in HH:MM:SS format (as in start string attribute).
      */
     printf("\nfile check for\n");
-    printf(" # |        start date         | samples |    diff (us)| inserted s\n");
+    printf(" # |        start date         | samples | diff (us) |     NaN (s)\n");
     printf("------------------------------------------------------------------\n");
     long totallen=0;
     float dec_sec, diff, diff2;
@@ -745,7 +745,7 @@ int main(int argc, char * argv[])
     }
     //check if completed, else fill up with NaN
     float dec_min=60.0*(float)parS.stime.tm_min + dec_sec + 60.0; //add 1 minute, since end of the file
-    nana[ind]=lroundf((3600.0-dec_min)*parS.sps)+1;
+    nana[ind]=lroundf((3600.0-dec_min)*parS.sps);
     if (nana[ind] > 0){ //if the last file does not stretch over hour border
         totallen+=nana[ind];
         printf("   : filling up with NaN:\t%8ld\t\t%8.2f\n",nana[ind], nana[ind]/parS.sps);
