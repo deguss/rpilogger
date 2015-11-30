@@ -3,7 +3,16 @@
 *.*~
 *.log
 *.pyc
+.bash_history
+.bash_logout
+.bashrc
+.lesshst
+wsserver/remoteport.txt
 
 # directories
+data/
+.ssh/
+.cache/
+.config/
 log/
 unused/
