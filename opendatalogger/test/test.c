@@ -1,5 +1,5 @@
 /* compile using 
- * gcc -o test test.c -lm -lnetcdf -lrt -Wall
+ * gcc -o test test.c -lm -lnetcdf -lrt -Wall -Wextra -Wno-missing-field-initializers -Wunused -D DEBUG_STAT
  */
 #include <stdio.h> //to redirect stdout, stderr
 #include <stdlib.h> //itoa
@@ -54,37 +54,35 @@ do { \
 } \
 while(0);
     
-    
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 struct params{
-    /* struct timeval has following members:
-     * time_t tv_sec
-     * long int tv_usec
-     */
-    struct timeval startEpoch;     
+    //no member struct timespec {.tv_sec, .tv_nsec} since it is stored in argument
     
     /* stuct tm (broken down time format) has following members
      * int tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec ... 
      */
-    struct tm stime;
+    struct tm tmb;
     
     float sps;     //sampling rate (1/s)
     int chnumber;  //amount of channels (usually 2 4 or 8)
     size_t length; //amount of samples in the file (usually sps * file duration)
+    
+    char starts[26+1]; //start string in format "2015-11-08 01:39:27.499968"
+    
 };
 #define MAX_CH_NUMBER (8)
 
 
 float standard_deviation(float *datap, long n);
-int get_nc_params(const char *file_in_dir, struct params *par, int first, 
-    char *startstr, struct timespec *fnts_p);
+int get_nc_params(const char *file_in_dir, struct params *par, int first, struct timespec *fnts_p);
 int concat_nc_data(const char *file_in_dir, const int count, const char *file_out,
-    const struct tm *file_out_time, long *trunc_p, long *nana_p, struct timespec (*fnts_p));
+    const time_t tstart, long *pos_p, struct timespec (*fnts_p));
 int cmpfunc_timespec(const void *a, const void *b);
 int cmpfunc_time(const void *aa, const void *bb);
 int getSortedFileList(const char *datadir, struct timespec *fnts_p);
-long date_difference(struct tm *tm1, struct tm *tm2);
-int delete_file(char *file_in_dir, struct timespec *ts);
+int delete_file(char *to_delete_file, struct timespec *ts, int dryrun);
 time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour );
 long arraysum( long *arr_p, long len);
 
@@ -127,8 +125,7 @@ float standard_deviation(float *datap, long n)
 }
 
 
-int get_nc_params(const char *file_in_dir, struct params *par, int first, 
-    char *startstr, struct timespec *fnts_p)
+int get_nc_params(const char *file_in_dir, struct params *par, int first, struct timespec *fnts_p)
 {
     int status;
     int ncid;
@@ -161,51 +158,47 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first,
     status = nc_get_att_float(ncid, NC_GLOBAL, "sps", &(par->sps));
     CHECK_NC_ERR("nc_get_att_float");
     
-    //get global attribute sampling start. String e.g. "2015-11-08 01:39:27.499968"
-    char str[255];
-    status = nc_get_att_text(ncid, NC_GLOBAL, "start", str);
+    status = nc_get_att_text(ncid, NC_GLOBAL, "start", par->starts); //"2015-11-08 01:39:27.499968"
     CHECK_NC_ERR("nc_get_att_text");
-
     //TODO: not nice
-    str[26]='\0'; //truncate string since get_att_text does not append \0  ???
-        
-    //if 4th argument startstr != NULL, we will copy the string there
-    if (startstr != NULL)
-        strcpy(startstr,str);
+    par->starts[26]='\0'; //truncate string since get_att_text does not append \0  ???
 
-    //sprintf(fracs,"%s",(str+20*sizeof(char)));
-    if (sscanf((str+20*sizeof(char)),"%ld",&(par->startEpoch.tv_usec)) != 1){
+    //convert startstring to fractional seconds (tv_usec)
+    long tv_usec;
+    if (sscanf((par->starts+20*sizeof(char)),"%ld",&tv_usec) != 1){
         logErrDate("%s: attribute \"start\" in %s not valid! (%s)\n",
-        __func__, filename, str);
+        __func__, filename, par->starts);
+        return -1;
     }
+    //copy tv_usec to argument pointer
+    fnts_p->tv_nsec = tv_usec * 1000;
     
-    //copy nsec to array pointer given by argument 
-    fnts_p->tv_nsec = par->startEpoch.tv_usec * 1000;
-    
-    //purge fractional seconds    
+    //purge fractional seconds
+    char str[26+1];
+    strncpy(str, par->starts, 27);
     str[19]='\0'; 
-    strptime(str, "%Y-%m-%d %H:%M:%S", &(par->stime));
-    par->startEpoch.tv_sec=(long int)(timegm(&par->stime));
-    
+    char *ret;
+    ret=strptime(str, "%Y-%m-%d %H:%M:%S", &(par->tmb));
+    if (*ret!='\0' || ret==NULL){ //error
+        logErrDate("%s: could not parse \"start\" in %s not valid! (%s)\n",
+            __func__, filename, par->starts);
+        return -1;
+    }
+   
     //file name check
-    if (par->startEpoch.tv_sec != fnts_p->tv_sec){
+    if (fnts_p->tv_sec != (long int)(timegm(&par->tmb))){
         logErrDate( "%s: corrupt data! file name does not match start date!\n"
-                    "filename=%ld.nc,  start=%ld (%s)\n",__func__,
-                    fnts_p->tv_sec, par->startEpoch.tv_sec, str);
+                    "filename=%ld.nc,  start=%s\n",__func__, fnts_p->tv_sec,  str);
         return -1;
     }
       
     status = nc_close(ncid);
     CHECK_NC_ERR("nc_close");
     
-#ifdef DEBUG    
-    //diagnostic output only
-    printf("str: %s | startEpoch: %ld.%ld\n",str,par->startEpoch.tv_sec,par->startEpoch.tv_usec);    
-#endif    
     //if output desired (first file, template)
     if (first){
         printf("%s: first file %s read\n",__func__,filename);
-        fprintf(stdout,"\tstarts at:                     %s.%ld\n",str,par->startEpoch.tv_usec);
+        fprintf(stdout,"\tstarts at:                     %s\n",str);
         printf("\tsps: %f Hz\n",par->sps);
         printf("\tchannels: %d\n",par->chnumber);
         printf("\tlength: %d samples (%gs)\n",par->length, roundf((float)par->length/par->sps));
@@ -225,21 +218,21 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first,
 
 
 int concat_nc_data(const char *file_in_dir, const int count, const char *file_out,
-    const struct tm *file_out_time, long *trunc_p, long *nana_p, struct timespec (*fnts_p))
+    const time_t tstart, long *pos_p, struct timespec (*fnts_p))
 {
     int status;
     int ncid_in, ncid_out;
-    int j, k, m;
+    long i, j, k, m;
     char file_in[255];
     char varstr[3+1]; //channel name e.g. "ch1"
-    if (count < 2 || file_in_dir == NULL || file_out == NULL || 
-        trunc_p == NULL || nana_p == NULL || fnts_p == NULL){
+    if (count < 2 || file_in_dir == NULL || file_out == NULL || tstart == 0 ||
+        pos_p == NULL || fnts_p == NULL){
         logErrDate("%s: parameter error!\nExit\n",__func__);
         return -1;
     }
     if (count < 60){
         printf("%s warn: too few files for a complete hour!\n"
-               "   info: start time will be adjusted, and the file filled up with NaN\n",__func__);
+               "   NaNs will be inserted where no data present!\n",__func__);
     }
     
     if (mkdir_filename(file_out) < 0){
@@ -255,39 +248,33 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         return -1;
     }
     
-    long totallen=arraysum(nana_p,MAX_FILES)+arraysum(trunc_p,MAX_FILES);
-    
     /* determine when the first file begins (usually in the hour before the processed hour) */
-    sprintf(file_in,"%s%ld.nc", file_in_dir,fnts_p->tv_sec);
-    char startstr[255], tmpstr[255];
+    //sprintf(file_in,"%s%ld.nc", file_in_dir,fnts_p->tv_sec);
     struct params par;
-    if ((status=get_nc_params(file_in_dir, &par, 0, startstr, fnts_p)) < 0){
-        logErrDate("%s: parsing \"start\" string in %s caused error: %s\nExit\n",
-        __func__,file_in,nc_strerror(status));
-        return -1;
-    }
-    
+    get_nc_params(file_in_dir, &par, 0, fnts_p);
+    long totallen=par.length*60;    
     
     //allocate memory for 1 hour input files 
     float *chp[MAX_CH_NUMBER];
-    size_t nnumb = totallen + 100000;
+    long nnumb = totallen + 100000;
     for (k=0; k<par.chnumber; k++){
-        chp[k] = calloc(nnumb, sizeof(float));
+        chp[k] = calloc((size_t)nnumb, sizeof(float));
         if (chp[k] == NULL){
-            logErrDate("%s: Could not allocate memory of size %d kB!\nExit\n",
-            __func__, (nnumb*sizeof(float)/1024)+1);
+            logErrDate("%s: Could not allocate memory of size %ld kB!\nExit\n",
+            __func__, (nnumb*sizeof(float)/1024L)+1);
             return -1;            
         }
         //and initialize it with NaN
         for (m=0; m<nnumb; m++)
             *(chp[k]+m)=NAN;
     }
-    long first_file_samp=0;
+    printf("info: memory allocated for %ld items\n",m);
+    
     int out_dimid[MAX_CH_NUMBER];       // dimension id
     int out_varid[MAX_CH_NUMBER];        // variable id
     
     for (k=0; k<par.chnumber; k++){ //for as many channels as in file (1,2,4 or 8)
-        sprintf(varstr,"%s%d","ch",k+1); //ch1, ch2 ...
+        sprintf(varstr,"%s%ld","ch",k+1); //ch1, ch2 ...
         // define dimensions 
         status = nc_def_dim(ncid_out, varstr, totallen, &out_dimid[k]);
         if (status != NC_NOERR){
@@ -316,37 +303,39 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     }
     status = nc_put_att_float(ncid_out, NC_GLOBAL, "sps", NC_FLOAT, 1, &(par.sps));
     CHECK_NC_ERR_FREE("nc_put_att_float (sps)");    
-    
 
-    //usual way, the first file stretches over the hour border
-    printf("%s:\n",__func__);
-    if (*(trunc_p) < par.length){
-        
-        first_file_samp = *trunc_p; // variable first_file_samp will be evaluated later
-        
-        printf("from the first file %8ld samples (%.2fs) will be taken\n",
-                first_file_samp,(float)(first_file_samp)/par.sps); 
-        printf("      starts exactly at:       %s\n",startstr);
-        
-        //updating start string to format "2015-11-08 14:00:00.000000"
-        strftime(tmpstr, sizeof(tmpstr), "%F %T.000000", file_out_time);
-        status = nc_put_att_text(ncid_out, NC_GLOBAL, "start", strlen(tmpstr), tmpstr);
-        CHECK_NC_ERR_FREE("nc_get_att_text");  
-   
-    } else { //any other case e.g. first file starts at 02:12:34 (HH:MM:SS)
-        //copy the "start" string from the very first input file
-        printf( "warn: the first file does not contain the start of the hour!\n");
-        
-        status = nc_put_att_text(ncid_out, NC_GLOBAL, "start", 26, startstr);
-        CHECK_NC_ERR_FREE("nc_get_att_text");
-    }
+    //create start string format "YYYY-MM-DD hh:mm:ss.000000"
+    struct tm tp=*(gmtime(&tstart));
+    char tmpstr[26+1];
+    strftime(tmpstr, sizeof(tmpstr), "%F %T.000000", &tp);
+    status = nc_put_att_text(ncid_out, NC_GLOBAL, "start", strlen(tmpstr), tmpstr);
+    CHECK_NC_ERR_FREE("nc_get_att_text");      
     
     //leaving define mode
     status = nc_enddef(ncid_out);
     CHECK_NC_ERR_FREE("nc_enddef");
+
+
+    printf("%s:\n",__func__);
     
-    long ins_cnt=0, ins_nan;
+    long incl=0;
+    float *memtr=NULL;
+    //check if the first file stretches over the hour border
+    if (*(pos_p) < 0){        
+        incl = labs(*pos_p);
+                                
+        printf("from the first file %8ld samples (%.3fs) will be taken\n",incl,(float)(incl)/par.sps); 
+        printf("      starts exactly at:       %s\n",par.starts);    
+        
+        memtr=calloc(par.length, sizeof(float));
+        if (memtr == NULL){
+            logErrDate("%s: Could not allocate memory of size %ld kB!\nExit\n",
+            __func__, (par.length*sizeof(float)/1024L)+1);
+            FREE_AND_RETURN(-1);
+        }        
+    }
     
+    long ins_cnt=0;
     // for as many input files as given -------------
     int varid[MAX_CH_NUMBER];
     for (j=0; j<count; j++){
@@ -359,65 +348,70 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
             FREE_AND_RETURN(-1);
         }
         
-        //read from the input files
-        for (k=0; k<par.chnumber; k++){ //for as many channels as in file (1,2,4 or 8)
-            sprintf(varstr,"%s%d","ch",k+1); //ch1, ch2 ...
+        //for as many channels as in file (1,2,4 or 8)
+        for (k=0; k<par.chnumber; k++){ 
+            sprintf(varstr,"%s%ld","ch",k+1); //ch1, ch2 ...
             status = nc_inq_varid(ncid_in, varstr, &varid[k]);
             if (status != NC_NOERR){
                 logErrDate("%s: Could not find variable %s in %s! nc_inq_varid: %s\nExit\n",
                 __func__, varstr, file_in, nc_strerror(status));
                 FREE_AND_RETURN(-1);
             }
-            
-            //insert NaN if neccessary
-            ins_nan=arraysum(nana_p,j+1); //cumulative sum
-            //insert values
-            status = nc_get_var_float(ncid_in, varid[k], (chp[k]+j*par.length + ins_nan));
-            if (status != NC_NOERR){
-                logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
-                __func__, varstr, file_in, nc_strerror(status));
-                FREE_AND_RETURN(-1);
+
+            //check if the first file and neccessary to copy truncated data
+            if (j==0 && *(pos_p) < 0){
+                //read in all data to temporary memory: memtr
+                status = nc_get_var_float(ncid_in, varid[k], memtr);
+                if (status != NC_NOERR){
+                    logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
+                    __func__, varstr, file_in, nc_strerror(status));
+                    FREE_AND_RETURN(-1);
+                }
+                //copy from temporary mem to output file array
+                for (m=0, i=(par.length-labs(*pos_p));  i<(long)par.length && m<(long)par.length; m++, i++){
+                    *(chp[k]+m) =  *(memtr+i);
+                }
+                //update ins_cnt
+                ins_cnt=incl;
+                   
+            } 
+            else { //insert values at position given by array pos
+                status = nc_get_var_float(ncid_in, varid[k], chp[k]+*(pos_p+j));
+                if (status != NC_NOERR){
+                    logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
+                    __func__, varstr, file_in, nc_strerror(status));
+                    FREE_AND_RETURN(-1);
+                }
             }
-            printf("|");
-            fflush(stdout);
             
-        }
+        } //end for as many channels
+        
         //update inserted values counter 
-        ins_cnt+=*(trunc_p+j)+*(nana_p+j); //values + NaNs        
+        if (*(pos_p+j)+(long)par.length > totallen) //for the last file 
+			ins_cnt+=(totallen - par.length);
+        else
+			ins_cnt+=par.length;
         
         status=nc_close(ncid_in);
         CHECK_NC_ERR_FREE("nc_close inputs");
         
     } // end for as many input files
-    
-    //add the NaN count at the end (if some)
-    ins_cnt+=*(nana_p+j); //values + NaNs 
+    free(memtr);
     
     printf("\n\n");
-    //TODO correct by start moved
-    printf("info: nominal file length:    %8ld\n",(long)par.length*60);
-    printf("      inserted NaN:           %8ld\n",arraysum(nana_p,MAX_FILES));
-    printf("      file length (incl. NaN):%8ld == %8ld\n",totallen,ins_cnt);
+    printf("info: file length:     %9ld\n",totallen);
+    printf("      inserted values: %9ld\n",MIN(totallen,ins_cnt));
+    printf("      NaN:             %9ld\n",totallen-MIN(totallen,ins_cnt));
     
-    
-    /* Correction of the beginning
-     * for the first file it might be neccessary to add only the last 'first_file_samp' amount
-     * so the pointer will be moved by (par.length-first_file_samp)
-     */
-    int offs=0;
-    if (first_file_samp){
-        offs=(par.length-first_file_samp);
-        printf("info: start index moved by %d\n",offs);
-    }
      
     size_t s_start[] = {0};
     size_t s_count[] = {totallen};    
     
     // write hughe array to output file
     for (k=0; k<par.chnumber; k++){ //for as many channels
-        status = nc_put_vara_float(ncid_out, out_varid[k], s_start, s_count, chp[k]+offs);
+        status = nc_put_vara_float(ncid_out, out_varid[k], s_start, s_count, chp[k]);
         if (status != NC_NOERR){
-            logErrDate("%s, nc_put_vara_float ch%d: %s\nExit\n",__func__,k+1,nc_strerror(status));
+            logErrDate("%s, nc_put_vara_float ch%ld: %s\nExit\n",__func__,k+1,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }
         status = nc_sync(ncid_out); //ensure it is written to disk        
@@ -430,8 +424,8 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
 #ifdef DEBUG_STAT
     printf("============================== stats ==============================\n");
     for (k=0; k<par.chnumber; k++){
-        printf("ch%i:",k+1);
-        standard_deviation(chp[k],count*par.length);
+        printf("ch%ld:",k+1);
+        standard_deviation(chp[k],totallen);
     }
 #endif
     //get filesize of output file
@@ -444,7 +438,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     
     //file sanity check 
     if (count>58 && abs(j*fsize_in - fsize_out) > 512*1024){ //less than 0.5MiB deviation
-        printf("file sanity check numb:%d, fsize_in: %.2fMiB\n",j,fsize_in/1024.0/1024.0);        
+        printf("file sanity check numb:%ld, fsize_in: %.2fMiB\n",j,fsize_in/1024.0/1024.0);        
         logErrDate("%s: file sizes seems not to be ok!\nNo deletion! Exit\n",__func__);
         FREE_AND_RETURN(-1);
     }
@@ -478,15 +472,19 @@ int cmpfunc_time(const void *aa, const void *bb)
 
 int getSortedFileList(const char *datadir, struct timespec *fnts_p)
 {
+    if (datadir==NULL || fnts_p==NULL){
+        logErrDate("%s: parameter error!\n",__func__);
+        return -1;
+    }
     DIR *dir;
     struct dirent *ent;
-    int ind=0;
+    int ind=0, i;
     long l;
     printf("reading directory %s...\n",datadir);
+    
+    //count how many files to allocate buffer for filenames
     if ((dir = opendir(datadir)) != NULL) {
-        while ((ent=readdir(dir)) != NULL) { 
-            if (!strcmp(ent->d_name,".") || !strcmp(ent->d_name,".."))
-                continue;
+        while ((ent=readdir(dir)) != NULL) {  //will count "." and ".." too
             ind++;
         }
         closedir (dir);
@@ -494,8 +492,9 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
         logErrDate("%s: could not open directory %s\n",__func__,datadir);
         return -1;
     }    
-    printf("   %d files counted\n",ind);
+    printf("   %d files counted\n",ind-2);
     
+    //allocate buffer
     time_t *p;
     p = (time_t *)calloc(ind, sizeof(time_t));
     if (p == NULL){
@@ -503,6 +502,7 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
         return -1;
     }
     
+    //read in files
     ind=0;    
     if ((dir = opendir(datadir)) != NULL) {
         while ((ent=readdir(dir)) != NULL) { //print all the files and directories within directory 
@@ -518,9 +518,12 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
         }
         closedir (dir);
     }
-    qsort(p, ind, sizeof(time_t), cmpfunc_time);
 
-    int i;
+    //sort files ascending (newest at the end)
+    qsort(p, ind, sizeof(time_t), cmpfunc_time);
+   
+    
+    //write the oldest 60 to the array pointer by parameter
     for (i=0; i<MAX_FILES && i<ind; i++){
         (fnts_p+i)->tv_sec = *(p+i);
     }
@@ -528,8 +531,6 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
     free(p);
     return ind;
 }
-
-
 
 int mkdir_filename(const char *dir_name)
 {
@@ -557,19 +558,25 @@ int mkdir_filename(const char *dir_name)
     return 0;
 }
 
-int delete_file(char *file_in_dir, struct timespec *ts)
+int delete_file(char *file_in_dir, struct timespec *ts, int dryrun)
 {
     static int cnt;
     char str[255];
     sprintf(str,"%s%ld.nc",file_in_dir,ts->tv_sec);    
     
-    if (cnt++ < 60){        //TODO remove
+    if (cnt++ < 60){
+		if (dryrun){
+            printf("%s would be deleted\n",str);
+            return 0;            
+		}
         if(unlink(str)==-1){
             logErrDate("%s: failed to delete file %s\n",__func__,str);
             return -1;
         } 
         else {
+#ifdef DEBUG
             printf("%s deleted\n",str);
+#endif
             return 0;
         }
     }
@@ -602,9 +609,8 @@ int main(int argc, char * argv[])
      *    time_t  tv_sec    //seconds
      *    long    tv_nsec   //nanoseconds     
      */
-    struct timespec fnts[MAX_FILES];   // array of timespecs = filenames
-    long nana[MAX_FILES]={0};   // indicator of NaN to be inserted when missing files
-    long trunc[MAX_FILES]={0};   // indicator for truncating files
+    struct timespec fnts[MAX_FILES];// array of timespecs = filenames
+    long pos[MAX_FILES]={0};        // indicator for start index of files
     
     /* struct tm is broken-down time */
     struct tm tp;   
@@ -624,18 +630,15 @@ int main(int argc, char * argv[])
     }
 #endif        
     
-    //display the starting time of the first file
-    /*struct tm*/
+    //convert the start time of the first file
     tp=*(gmtime(&fnts[0].tv_sec)); //convert to broken down time format
-    strftime(tmpstr, sizeof(tmpstr), "%F %T %z", &tp);
-//printf("first file (%ld.nc) starts at:  %s\n",fnts[0].tv_sec,tmpstr); 
 
     //determine beginning of this hour (used for output file name)
     struct tm tp0h; 
-    calcNextFullHour(&tp, &tp0h, 0);
-    //however when file starts within 60 seconds to the next hour, ceil
+    time_t t0h = calcNextFullHour(&tp, &tp0h, 0);
+    //however when the first file starts within 60 seconds to the next hour, ceil
     if (tp.tm_min == 59){
-        calcNextFullHour(&tp, &tp0h, 1);
+        t0h = calcNextFullHour(&tp, &tp0h, 1);
     }
     strftime(tmpstr, sizeof(tmpstr), "%F %T %z", &tp0h);
     printf("beginning of the hour to be processed: %s\n",tmpstr); 
@@ -645,30 +648,25 @@ int main(int argc, char * argv[])
     struct tm tp1h;
     time_t t1h = calcNextFullHour(&tp0h, &tp1h, 1);        
     strftime(tmpstr, sizeof(tmpstr), "%F %T %z", &tp1h);
-    //printf("end of the hour to be processed:       %s\n", tmpstr);
-    printf("in total %ld seconds (%.2f min) to   %s\n",
-    (long)(t1h-fnts[0].tv_sec),(t1h-fnts[0].tv_sec)/60.0,tmpstr);
-    
+    printf("end of the hour to be processed:       %s\n", tmpstr);   
     
 
     char file_in[255];
     char file_out[255];
     char daystr[255];
-    char startstr[255];
-    //open first file to check length, sps, number of channels ...
-    struct params parM, parS;
     
+    /* open first file to check length, sps, number of channels ...
+     * this will be saved as "template". parM .. Master
+     * All further files must be identical in parameters except start date
+     */
+    struct params parM;
     sprintf(file_in,    "%s%ld.nc",file_in_dir,fnts[0].tv_sec);
     sprintf(daystr, "%04d/%02d/%02d", tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday);
 
-    if (get_nc_params(file_in_dir, &parM, 1, NULL, &fnts[0]) <0){
+    if (get_nc_params(file_in_dir, &parM, 1, &fnts[0]) <0){
         logErrDate("Error while reading parameters in %s!\nExit\n",file_in);
-        exit_all(-1);        
-    }
-
-    sprintf(file_out, "%s%s/%04d-%02d-%02dT%02d.nc", file_out_dir,daystr,
-        tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, tp0h.tm_hour);    
-    printf("\noutfile: %s\n",file_out);
+        return -1;
+    }   
 
     
     /* open all further files (including the first) within that hour,
@@ -677,114 +675,118 @@ int main(int argc, char * argv[])
      * names in HH:MM:SS format (as in start string attribute).
      */
     printf("\nfile check for\n");
-    printf(" # |        start date         | samples | diff (us) |     NaN (s)\n");
-    printf("------------------------------------------------------------------\n");
-    long totallen=0;
-    float dec_sec, diff, diff2;
-    for(ind=0; (t1h-fnts[ind].tv_sec)>0; ind++){
+    printf(" # |    file name  =   start time   |      index | diff (us)|\n");
+    printf("-------------------------------------------------------------");
+    long nans;
+    float dec_sec, diff;
+    struct params parS;
+    
+    
+    //for as many files as whose starting date is within hour limit
+    for(ind=0; (t1h-fnts[ind].tv_sec)>0; ind++){ 
+        
+        //build file name
         sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);       
-        if (get_nc_params(file_in_dir, &parS, 0, startstr, &fnts[ind]) < 0){
+        
+        if (get_nc_params(file_in_dir, &parS, 0, &fnts[ind]) < 0){
             logErrDate("%d. file (%s) parameter assert error!\n Skipping\n",ind,file_in);
-            delete_file(file_in_dir, &fnts[ind]);
+            delete_file(file_in_dir, &fnts[ind], 0); //delete always, irrespect of -d flag
             return -1;
         }
-        tp=*(gmtime(&fnts[ind].tv_sec)); //convert to broken down time format
         
-        /* Beginning or End
-         * usually, the hour starts with the file beginning in the 59th 
-         * second of the previous hour, or the last file starts in 59th sec.
+        /* usually, the hour starts with the file beginning in the 59th 
+         * minute of the previous hour. If yes, determine how much overlaps the 
+         * tartget hour
          */
-        //calculate decimal seconds (02:59:32.544123 -> 32.544123) 
-        dec_sec=(float)parS.stime.tm_sec + (float)(parS.startEpoch.tv_usec*1E-6);
-        if (tp.tm_min == 59){
-            //calculate amount of NaNs to be inserted   
-            if (ind==0) //at the beginning
-                trunc[ind]=lroundf(dec_sec*parS.sps);
-            else
-                trunc[ind]=lroundf((60.0-dec_sec)*parS.sps);
-            totallen+= trunc[ind];
-            printf("*%2d: %s\t%8ld\n",ind+1,startstr,  trunc[ind]);
+
+        //file begins before hour, need to find out when exactly
+        if (fnts[ind].tv_sec < t0h){
+            if (t0h - fnts[ind].tv_sec > 60){ //panic
+                logErrDate("file %ld.nc (%s) out of time range!\n",fnts[ind].tv_sec, parS.starts);
+                return -1;
+            }
+            //calculate decimal seconds (02:59:32.544123 -> 32.544123) 
+            dec_sec=(float)parS.tmb.tm_sec + (float)(fnts[ind].tv_nsec*1E-9);
+            
+            //negativ value if file starts earlier than the beginning of the hour
+            pos[ind]=0-lroundf(dec_sec*parS.sps);
+            printf("\n*%2d: %ld.nc = %s\t%9ld",ind+1, fnts[ind].tv_sec, parS.starts+11,  pos[ind]);
             
         } else {
             /* in between we have to check for continousity. If a file is
              * missing insert as many NaN as needed.
              */
-            trunc[ind]=(long)parS.length;
+            
+            // calculate relative time in decimal seconds
+            dec_sec=(float)(fnts[ind].tv_sec-t0h)+(float)(fnts[ind].tv_nsec*1E-9);
+            // convert to index
+            pos[ind]=lroundf(dec_sec*parS.sps);
+            
+            //calculate jitter
             if (ind>0){ //difference make no sense at the first file
                 diff=(float)(fnts[ind].tv_sec-fnts[ind-1].tv_sec-60)*1E9 + 
                      (float)(fnts[ind].tv_nsec-fnts[ind-1].tv_nsec);
                 //printf("diff:  %+4.0f\t",diff/1E3);
 
-                if (diff > 1E9/parS.sps) { //if missing more than 1 sample 
-                    nana[ind]=lroundf(diff*parS.sps*1E-9);
- 
-                    printf("   : filling up with NaN:\t%8ld\t\t%8.2f\n",nana[ind],nana[ind]/parS.sps);
-                    //update inserted values counter
-                    totallen+=nana[ind];
-                }
-            }              
-            totallen+=parS.length;
-            
-            printf(" %2d: %s\t%8ld",ind+1,startstr,(long)parS.length);
-            //calculate jitter
-            if (ind>0){ //difference make no sense at the first file
-                diff=(float)(fnts[ind].tv_sec-fnts[ind-1].tv_sec-60)*1E9 + 
-                     (float)(fnts[ind].tv_nsec-fnts[ind-1].tv_nsec);
-#ifdef DEBUG_DIFF       
-                    if (ind>1){ //difference of differences make no sense at the first 2 files
-                        printf("\tddiff: %+4.0f | %+4.0f",(diff-diff2)/1E3, (diff+diff2)/1E3);
-                    }
-                    diff2=diff;
-#endif              
-                if (diff < 1E9) //display only if jitter < 1s
-                    printf("\t%+4.0f",diff/1E3);
-            }
-            printf("\n");
+                if (labs(diff) > 1E9/parS.sps) { //if missing more than 1 sample 
+                    nans=lroundf(diff*parS.sps*1E-9);
 
-        }
-    }
-    //check if completed, else fill up with NaN
-    float dec_min=60.0*(float)parS.stime.tm_min + dec_sec + 60.0; //add 1 minute, since end of the file
-    nana[ind]=lroundf((3600.0-dec_min)*parS.sps);
-    if (nana[ind] > 0){ //if the last file does not stretch over hour border
-        totallen+=nana[ind];
-        printf("   : filling up with NaN:\t%8ld\t\t%8.2f\n",nana[ind], nana[ind]/parS.sps);
-    }    
-    printf("------------------------------------------------------------------\n");
-    printf("end: %s %9ld\n",tmpstr,totallen);
+                    printf("\n   : filling up with NaN                %+9ld = %8.2fs", nans,nans/parS.sps);
+                }
+           
+                if (labs(diff) < 1E9) //display only if jitter < 1s
+                    printf("\t%+4.0f",diff/1E3);
+			}
+
+            printf("\n %2d: %ld.nc = %s\t%9ld",ind+1, fnts[ind].tv_sec, parS.starts+11,  pos[ind]);
+            
+            
+
+        } //end else
+    }//end for 
+    
+    printf("\n------------------------------------------------------------------\n");
     
     //print the next file which IS NOT in the hour anymore
-    struct params upar;
     sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);       
-    if (get_nc_params(file_in_dir, &upar, 0, startstr, &fnts[ind]) < 0){
+    if (get_nc_params(file_in_dir, &parS, 0, &fnts[ind]) < 0){
         logErrDate("further %d. file (%s) parameter assert error!\n",ind,file_in);
     }
-    printf("(  : %s) <- not included\n",startstr);
+    printf("(  : %ld.nc = %s) <- not included\n",fnts[ind].tv_sec, parS.starts);
     
     
-    printf("\n%d files will be concatenated.\n\n",ind);
-    
-#ifdef DEBUG_PARRAY    
-    for (i=0; i<ind+1 && i<MAX_FILES; i++){
-        printf("\t%2d tr:%8ld  NaN:%8ld\n",i+1,trunc[i],nana[i]);
-    }
-    printf("arraysum(trunc):  %8ld\n",arraysum(trunc, MAX_FILES));
-    printf("arraysum(nana):   %8ld\n",arraysum(nana, MAX_FILES));
-    printf("arraysum(tr+nana):%8ld\n",arraysum(trunc, MAX_FILES)+arraysum(nana, MAX_FILES));
-#endif
+    printf("\n%d files will be concatenated.\n",ind);
+
+    sprintf(file_out, "%s%s/%04d-%02d-%02dT%02d.nc", file_out_dir,daystr,
+        tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday, tp0h.tm_hour); 
+    printf("\noutfile: %s\n",file_out);
 
     /* concatenation:
-     * int concat_nc_data(const char *file_in_dir, const int count, const char *file_out,
-     *      const struct tm *file_out_time, long *trunc_p, long *nana_p, struct timespec (*fnts_p)){
+     * concat_nc_data(const char *file_in_dir, const int count, const char *file_out,
+     * const time_t tstart, long *pos_p, struct timespec (*fnts_p))
      */
     i=0;
     if (ind>1){
-        if ((i=concat_nc_data(file_in_dir, ind, file_out, &tp1h, trunc, nana, fnts)) < 0){
+        if ((i=concat_nc_data(file_in_dir, ind, file_out, t0h, pos, fnts)) < 0){
             logErrDate("Error while concatenating!\n");
         }
     }     
+
+	/* if the files are more than 3 days older, delete them (else the -d 
+	 * flag /dryrun/ is set. */
+	int dryrun=1; //default no delete
+	time_t rightnow;
+	time(&rightnow);
+	if (rightnow - fnts[0].tv_sec > 3*24*60*60 )
+		dryrun=0;
+	if (argc>1 && !strcmp(argv[1],"-d"))
+		dryrun=1;
+	if (!dryrun)
+		printf("info: deleting files since older than 3 days\n");
+
+	
     /* after EVERY run the first file will be deleted */
-    if(delete_file(file_in_dir, &fnts[0])){
+    if(delete_file(file_in_dir, &fnts[0], dryrun)){
         logErrDate("failed to delete files.\nExit\n");
         return -1;
     }
@@ -794,31 +796,29 @@ int main(int argc, char * argv[])
         return 0;
     }
     
-// dry run when 
-// return -1;
-    
     /* if exactly as many files as requested (or at highest one fewer) 
      * were concatenated, delete raw files, except the last one 
      * (it might contain data for the next hour)
      */
     if (i >= 2) {
         for (j=1; j<i-1 && j<60; j++){
-            if(delete_file(file_in_dir, &fnts[j])){
+            if(delete_file(file_in_dir, &fnts[j], dryrun)){
                 logErrDate("failed to delete file %ld.nc.\nExit\n",fnts[j].tv_sec);
                 return -1;
             }
         }
         //check last processed file
         tp=*(gmtime(&fnts[i-1].tv_sec)); //convert to broken down time format
-        printf("last file %02d:%02d:%02d\n",tp.tm_hour,tp.tm_min,tp.tm_sec);
+        //printf("last file %02d:%02d:%02d\n",tp.tm_hour,tp.tm_min,tp.tm_sec);
         if (tp.tm_min != 59){
-            if(delete_file(file_in_dir, &fnts[i-1])){
+            if(delete_file(file_in_dir, &fnts[i-1], dryrun)){
                 logErrDate("failed to delete files.\nExit\n");
                 return -1;
             }
             j++; 
         }
-        printf("%d files deleted from %s\n",j,file_in_dir);
+        if (!dryrun)
+			printf("%d files deleted from %s\n",j,file_in_dir);
     }
     else {
         printf("Requested %d files to concatenate, but only %d performed.\n",ind,i);
