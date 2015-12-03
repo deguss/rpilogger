@@ -1,3 +1,15 @@
+/**
+ *   @file    nanosleep.c
+ *   @author  Daniel Piri
+ *   @link    http://opendatalogger.com 
+ *   @brief   timing performance testing
+ *   
+ *   This software is licensed under the GNU General Public License.
+ *   (CC-BY-NC-SA) You are free to adapt, share but non-commercial.
+ */
+/* compile 
+ * gcc -o build/nanosleep src/nanosleep.c -lm -lnetcdf -lrt -Wall -Wextra -Wno-missing-field-initializers -Wunused
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
