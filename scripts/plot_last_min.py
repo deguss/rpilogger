@@ -44,7 +44,7 @@ def readfiles():
         ch2=fid.variables['ch2'][:]
         t=np.linspace(0,60,sampl)
         fid.close()
-	print "file read"
+    print "file read"
         
 def plot_time():
     global t, ch1, ch2, sps, sampl, title

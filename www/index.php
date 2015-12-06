@@ -66,15 +66,15 @@ function test_proc($name,$desc=''){
         }  
         ws.onopen = function(evt) {
             add("connected\r\n"); 
-			tBox.style.backgroundColor = "Chartreuse";
+            tBox.style.backgroundColor = "Chartreuse";
         }
         ws.onerror = function(evt) {
             add("websocket error!\r\n");
-			tBox.style.backgroundColor = "#FFCCCC";
+            tBox.style.backgroundColor = "#FFCCCC";
         }
         ws.onclose = function(evt) {
             add("websocket closed!\r\n");
-			tBox.style.backgroundColor = "#FFCCCC";            
+            tBox.style.backgroundColor = "#FFCCCC";            
         }
     });    
     </script>
@@ -101,14 +101,20 @@ function test_proc($name,$desc=''){
         ?>
     <tr class="info">
         <td colspan="3"><?php
-            $str=exec("uptime");
-            $s1=explode(" user", $str);
-            $s0=explode(" up ", $s1[0]);
-			echo print exec("date"). '<br />'.PHP_EOL;            
-            echo sprintf("system uptime: %s",substr($s0[1],0,-4)) . '<br />'.PHP_EOL;
-            $str=exec("ps -p $(pgrep ads) -o etime h");
-            echo sprintf("&emsp;ads running: %s",str_replace("-"," days, ",$str)). '<br />'.PHP_EOL;
-            //echo sprintf("%s",substr($s1[1],3,-1)) . '<br />'.PHP_EOL; #load avg
+            echo exec("date").'<br />'.PHP_EOL;
+            
+            $uptime = shell_exec("cut -d. -f1 /proc/uptime");
+            $days = floor($uptime/60/60/24);
+            $hours = $uptime/60/60%24;
+            $mins = $uptime/60%60;
+            echo sprintf("system uptime: %d days %02d:%02d",$days,$hours,$mins).'<br />'.PHP_EOL;
+            
+            $uptime=intval(shell_exec("ps -p $(pgrep ^ads$) -o etimes h"));
+            $days = floor($uptime/60/60/24);
+            $hours = $uptime/60/60%24;
+            $mins = $uptime/60%60;
+            echo sprintf("&emsp;&emsp;&emsp;ads uptime: %d days %02d:%02d",$days,$hours,$mins).'<br />'.PHP_EOL;
+            
             $bytes = disk_free_space(".");
             $si_prefix = array( 'B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB');
             $base = 1000;

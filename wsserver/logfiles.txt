@@ -3,5 +3,8 @@
 /var/log/fail2ban.log
 /var/log/user.log
 /var/log/vsftpd.log
-/home/pi/wsserver/online.log
+/home/pi/wsserver/log/online.log
+/home/pi/wsserver/log/reboot-server.log
+/home/pi/scripts/log/call_ncglue.log
 /opt/opendatalogger/log/ads.log
+/opt/opendatalogger/log/ncglue.log
