@@ -1,23 +1,9 @@
-# config I2C addresses
-# valid settings: 0x48, 0x49, 0x4A, 0x4B
-PREPROC+=-D CFG_ADC1=0x49
-PREPROC+=-D CFG_ADC2=0x48
-
-# config sampling sequence
-# valid settings: ADS_CONF_MUX_D_01, ADS_CONF_MUX_D_23, etc. see in ads1115.h
-# (do not get confused if you only need 2 channels and the sequence number is not continous)
-PREPROC+=-D CFG_SEQ1_ADC1=ADS_CONF_MUX_D_01
-PREPROC+=-D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01
-#PREPROC+=-D CFG_SEQ3_ADC1=ADS_CONF_MUX_D_23
-#PREPROC+=-D CFG_SEQ4_ADC2=ADS_CONF_MUX_D_23
-
-
-
-
-### ------------  Makefile created by Daniel Piri  ---------------   ###
+### ------------  Makefile created by Daniel Piri    2015/12/06 --   ###
 ###                  http://github.com/deguss                        ###
 ###                  http://opendatalogger.com                       ###
-### --- the content below is not intended to be modified by user --- ###
+###     the content below is not intended to be modified by user     ###
+### ------------ please edit configure.txt instead ---------------   ###
+
 SHELL:=/bin/bash
 VPATH:=src
 TARGET:=ads
@@ -31,6 +17,7 @@ OBJECTS:=main.c i2c.c system.c inifile.c filelock.c iniparser.c dictionary.c
 now=$(shell date "+%F %T %z")
 user=$(shell whoami)
 host=$(shell hostname)
+include configure.txt
 mac=$(shell cat /sys/class/net/eth0/address)
 PREPROC+=-D _TIMESTAMP_="\"$(now)\""
 PREPROC+=-D _USER_AND_HOST="\"$(user) at $(host) from $(mac)\""
@@ -68,10 +55,9 @@ ads: $(OBJECTS)
 	# save compiler flags into file flaginfo
 	@echo "$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^" > build/flaginfo
 	
-	# compile (and save output to file buildinfo
+	# compile (and save output to file buildinfo)
 	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
 	
-	# echo result in color	
 	@if test -e build/$(TARGET); then \
 echo -e "$(OK_COLOR)[OK] all done$(NO_COLOR)"; \
 echo "to verify correct behaviour run    sudo build/ads --debug"; \
@@ -82,10 +68,16 @@ fi
 
 ncglue: ncglue.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(WFLAGS) src/ncglue.c -o build/ncglue
-	sudo mkdir -p $(DEPLOY)
-	sudo cp build/ncglue $(DEPLOY)/
-	sudo chown pi:pi $(DEPLOY)/ncglue
 
+install_ncglue: build/ncglue
+ifneq ($(user),root)
+	@echo -e "$(ERROR_COLOR)install requires root privileges$(NO_COLOR)"
+	@exit -1
+endif
+	mkdir -p $(DEPLOY)
+	cp build/ncglue $(DEPLOY)/
+	chown pi:pi $(DEPLOY)/ncglue
+	
 clean: 
 	@rm -r -f build
 	@rm -r -f debug
@@ -107,7 +99,7 @@ gcov: $(OBJECTS)
 	
 install: build/ads build/ncglue
 ifneq ($(user),root)
-	@echo -e "$(ERROR_COLOR)make sure you have root privilegs prior installing$(NO_COLOR)"
+	@echo -e "$(ERROR_COLOR)install requires root privileges$(NO_COLOR)"
 	@exit -1
 endif
 	@echo "installing..."
@@ -135,7 +127,7 @@ endif
 
 uninstall: 
 ifneq ($(user),root)
-	@echo -e "$(ERROR_COLOR)make sure you have root privilegs prior uninstalling$(NO_COLOR)"
+	@echo -e "$(ERROR_COLOR)uninstall requires root privileges$(NO_COLOR)"
 	@exit -1
 endif
 	@echo "uninstalling..."
@@ -151,5 +143,5 @@ endif
 	#remove cron.hourly job
 	rm -f /etc/cron.hourly/cron_ncglue
 	
-.PHONY: all ncglue debug gcov clean install uninstall
+.PHONY: all ncglue debug gcov clean install install_ncglue uninstall
 	
