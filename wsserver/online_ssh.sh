@@ -1,10 +1,12 @@
 #!/bin/bash
 REMOTEPORTFILE="/home/pi/wsserver/remoteport.txt"
 
-if [ -s $REMOTEPORTFILE ]
+if [ -s $REMOTEPORTFILE ] #file exists and has size greater than 0
 then
-	ODLPORT=3000
-	echo $ODLPORT > $REMOTEPORTFILE
+    ODLPORT=`cat $REMOTEPORTFILE`
+else
+    ODLPORT=3000
+    echo $ODLPORT > $REMOTEPORTFILE
 fi
 
 URL="http://opendatalogger.com/update_client.php"

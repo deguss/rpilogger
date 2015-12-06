@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+# all cron scripts run as root. Since we does not need that, execute the
+#  calling script "call_ncglue.sh" as user pi. 
+
+test -e /home/pi/scripts/call_ncglue.sh || exit 1
+
+su -c "stdbuf -oL -eL /home/pi/scripts/call_ncglue.sh >> /home/pi/scripts/log/call_ncglue.log" -m "pi"
+
+exit 0

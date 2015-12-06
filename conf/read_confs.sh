@@ -12,9 +12,6 @@ for i in "${lines[@]}"; do
 	fi
 done
 
-# crontabs
-crontab -l > ~/conf/crontab_pi
-sudo crontab -l > ~/conf/crontab_root
 
 
 

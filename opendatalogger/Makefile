@@ -39,18 +39,39 @@ NO_COLOR=\x1b[0m
 OK_COLOR=\x1b[32;01m
 ERROR_COLOR=\x1b[31;01m
 WARN_COLOR=\x1b[33;01m
-	
-		
-all: $(OBJECTS)
+
+.DEFAULT_GOAL := all	
+
+help:
+	@echo "usage:"
+	@echo "    make clean        # removes output dir: build/ and debug/"
+	@echo "    make all          # make all targets (use this if unsure)"
+	@echo "    make ads          # make only the ads sampling program"
+	@echo "    make ncglue       # make only the ncglue program"
+	@echo "    make install      # install programs"
+	@echo "    make uninstall    # uninstall programs"	
+	@echo "    make debug        # gdb conform executable will be created for debugging"
+	@echo "    make gcov         # gprof conform executable will be created for profiling"	
+
+
+all: ads ncglue
+
+
+ads: $(OBJECTS)
 	@rm -r -f debug		
 	@mkdir -p build
 	@rm -f build/$(TARGET)
-# save gcc version information to file gccinfo
+	
+	# save gcc version information to file gccinfo
 	@$(CC) -v 2> build/gccinfo
-# save compiler flags into file flaginfo
+	
+	# save compiler flags into file flaginfo
 	@echo "$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^" > build/flaginfo
-# compile (and save output to file buildinfo
+	
+	# compile (and save output to file buildinfo
 	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
+	
+	# echo result in color	
 	@if test -e build/$(TARGET); then \
 echo -e "$(OK_COLOR)[OK] all done$(NO_COLOR)"; \
 echo "to verify correct behaviour run    sudo build/ads --debug"; \
@@ -59,19 +80,15 @@ else \
 echo -e "$(ERROR_COLOR)compilation failed$(NO_COLOR)"; \
 fi
 
-help:
-	@echo "usage:"
-	@echo "        make clean           # removes output dir: build/ and debug/"
-	@echo "        make all             # binary executable build/$(TARGET) will be created"
-	@echo "        make install         # no effect"
-	@echo "        make uninstall       # no efffect"	
-	@echo "        make debug           # gdb conform executable will be created for debugging"
-	@echo "        make gcov            # gprof conform executable will be created for profiling"	
+ncglue: ncglue.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(WFLAGS) src/ncglue.c -o build/ncglue
+	sudo mkdir -p $(DEPLOY)
+	sudo cp build/ncglue $(DEPLOY)/
+	sudo chown pi:pi $(DEPLOY)/ncglue
 
 clean: 
 	@rm -r -f build
 	@rm -r -f debug
-	@rm -r -f log
 	@echo "clean done"
 
 debug: $(OBJECTS)
@@ -88,29 +105,28 @@ gcov: $(OBJECTS)
 	$(CC) -fprofile-arcs -ftest-coverage $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
 	@echo "ready for coverage analysis. use gcov src/main.c and check main.c.gcov"	
 	
-install: build
+install: build/ads build/ncglue
 ifneq ($(user),root)
 	@echo -e "$(ERROR_COLOR)make sure you have root privilegs prior installing$(NO_COLOR)"
 	@exit -1
 endif
 	@echo "installing..."
-	test -e /etc/init.d/opendatalogger && /etc/init.d/opendatalogger stop	
+	@if [ -e /etc/init.d/opendatalogger ]; then /etc/init.d/opendatalogger stop; fi
 	
-#install to /opt/opendatalogger
+	#install to /opt/opendatalogger
 	mkdir -p $(DEPLOY)
-	cp build/$(TARGET) $(DEPLOY)/$(TARGET)
-	cp build/buildinfo $(DEPLOY)/buildinfo
-	cp build/flaginfo $(DEPLOY)/flaginfo
-	cp build/gccinfo $(DEPLOY)/gccinfo
+	cp -R build/. $(DEPLOY)
+	rm -f $(DEPLOY)/ads.conf
 	chmod 0500 $(DEPLOY)/$(TARGET)
 
-#install init script to /etc/init.d/	
+	#install init script to /etc/init.d/	
 	cp ../conf/etc/init.d/opendatalogger /etc/init.d/opendatalogger
 	update-rc.d opendatalogger defaults
 	ls -l /etc/rc?.d/*opendatalogger
 	
-#remove build
-	#rm -r -f build
+
+	#install cron.hourly job
+	cp ../conf/etc/cron.hourly/cron_ncglue /etc/cron.hourly/.
 	
 	@echo -e "$(OK_COLOR)[OK]$(NO_COLOR)"
 	@echo "start the service by          sudo /etc/init.d/opendatalogger start"
@@ -122,14 +138,17 @@ ifneq ($(user),root)
 	@exit -1
 endif
 	@echo "uninstalling..."
-	/etc/init.d/opendatalogger stop	
+	@if [ -e /etc/init.d/opendatalogger ]; then /etc/init.d/opendatalogger stop; fi
 	
-#remove /opt/opendatalogger
+	#remove /opt/opendatalogger
 	rm -r $(DEPLOY)
 	
-#remove init script	
+	#remove init script	
 	rm -f /etc/init.d/opendatalogger
 	update-rc.d -f opendatalogger remove
 	
-.PHONY: all debug gcov clean install uninstall
+	#remove cron.hourly job
+	rm -f /etc/cron.hourly/cron_ncglue
+	
+.PHONY: all ncglue debug gcov clean install uninstall
 	

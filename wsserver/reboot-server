@@ -4,8 +4,8 @@
     ================ 2 things in 1 for remote reboot ==================
     This is a simple socket server listening on a specified port for a
     pattern. If match, the system will be rebooted. Must be run as root.
-    you can test it by: 
-        telnet <ip> <port> 
+    you can test it from a remote machine by: 
+        telnet <ip-of-this-machine> <port-defined-below> 
         <pattern>
         
     Secondly, it checks the presense of the file <file>. If not present,
@@ -18,19 +18,27 @@
         
 '''
 import socket
-import sys
+import sys, os, time
 from thread import *
-import os
-from time import *
 import threading
 
 HOST = ''   # Symbolic name, meaning all available interfaces
 PORT = 21099 # Arbitrary non-privileged port
 _PATTERN = '4pd0aMxyOy57pvAh9lcIjh'
 _FILE='/home/pi/delete_to_reboot'
+_dirn=os.path.dirname(os.path.realpath(__file__))
 
-#delay to prevent inittab respawning too fast
-sleep(5)
+if len(sys.argv)>1 and str(sys.argv[1])=="--debug":
+    print "debug mode"
+    
+else:
+    time.sleep(5) #to prevent initv to respawn too fast        
+    
+    #redirect stdin, stdout
+    logfile=os.path.join(_dirn,"log/reboot-server.log")
+    unbuffered = open(logfile, 'w', 0)
+    sys.stdout = unbuffered
+    sys.stderr = unbuffered
 
 def touch(path):
     with open(path, 'a'):

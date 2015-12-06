@@ -70,7 +70,7 @@ po::powerokwait:/etc/init.d/powerfail stop
 
 
 #reboot-server (listening on a TCP port)
-RE:2345:respawn:/home/pi/wsserver/reboot-server
+RE:12345:respawn:/home/pi/wsserver/reboot-server
 #tail-f-server (websocket)
-TF:2345:respawn:/home/pi/wsserver/tailf-server
+TF:23:respawn:/home/pi/wsserver/tailf-server
 

@@ -1,4 +1,0 @@
-MAILTO=""
-SHELL=/bin/bash
-# m h  dom mon dow   command
-50 * * * * /bin/sleep `/usr/bin/expr $RANDOM \% 600`; /home/pi/wsserver/online.sh >> /home/pi/wsserver/online.log 2>&1

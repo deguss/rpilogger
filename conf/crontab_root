@@ -1,6 +1,0 @@
-# m h  dom mon dow   command
-MAILTO=""
-SHELL=/bin/bash
-#*/5 * * * * /home/pi/rpilogger/scripts/checker.sh >> /home/pi/rpilogger/log/checker.log 2>&1
-#@reboot /bin/sleep 65 && /home/pi/wsserver/reboot-server.py 2>&1 > /home/pi/wsserver/log-reboot.log &
-

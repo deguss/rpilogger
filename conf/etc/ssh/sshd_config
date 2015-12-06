@@ -28,6 +28,9 @@ LoginGraceTime 120
 PermitRootLogin no
 StrictModes yes
 
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
 RSAAuthentication yes
 PubkeyAuthentication yes
 #AuthorizedKeysFile	%h/.ssh/authorized_keys
@@ -41,9 +44,6 @@ HostbasedAuthentication no
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
 #IgnoreUserKnownHosts yes
 
-# To enable empty passwords, change to yes (NOT RECOMMENDED)
-PermitEmptyPasswords no
-
 # Change to yes to enable challenge-response passwords (beware issues with
 # some PAM modules and threads)
 ChallengeResponseAuthentication no
@@ -51,15 +51,6 @@ ChallengeResponseAuthentication no
 # Change to no to disable tunnelled clear text passwords
 #PasswordAuthentication yes
 
-# Kerberos options
-#KerberosAuthentication no
-#KerberosGetAFSToken no
-#KerberosOrLocalPasswd yes
-#KerberosTicketCleanup yes
-
-# GSSAPI options
-#GSSAPIAuthentication no
-#GSSAPICleanupCredentials yes
 
 X11Forwarding no
 X11DisplayOffset 10

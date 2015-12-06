@@ -1,0 +1,12 @@
+/opt/opendatalogger/*.log {
+        weekly
+        missingok
+        rotate 12
+        compress
+        delaycompress
+        notifempty
+        sharedscripts
+        postrotate
+            /etc/init.d/opendatalogger reopen-logs > /dev/null 2>&1
+        endscript
+}

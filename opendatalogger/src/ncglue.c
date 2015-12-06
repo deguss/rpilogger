@@ -20,7 +20,7 @@ long fsize(char *filename)
     if (stat(filename, &st) == 0)
         return (long)st.st_size;
 
-    logErrDate("Cannot determine size of %s\n", filename);
+    fprintf(stderr,"Cannot determine size of %s\n", filename);
 
     return -1;
 }
@@ -57,14 +57,14 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first, struct
     char filename[255];
     
     if (file_in_dir == NULL || par == NULL || fnts_p == NULL){
-        logErrDate("%s: parameter error\nExit\n",__func__);
+        fprintf(stderr,"%s: parameter error\nExit\n",__func__);
         return -1;
     }
     sprintf(filename,"%s%ld.nc",file_in_dir,fnts_p->tv_sec);
     
     status = nc_open(filename, NC_NOWRITE, &ncid);
     if (status != NC_NOERR){
-        logErrDate("%s: Could not open file %s to read!\n%s\nExit\n",
+        fprintf(stderr,"%s: Could not open file %s to read!\n%s\nExit\n",
         __func__,filename,nc_strerror(status));
         return -1;
     }
@@ -89,7 +89,7 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first, struct
     //convert startstring to fractional seconds (tv_usec)
     long tv_usec;
     if (sscanf((par->starts+20*sizeof(char)),"%ld",&tv_usec) != 1){
-        logErrDate("%s: attribute \"start\" in %s not valid! (%s)\n",
+        fprintf(stderr,"%s: attribute \"start\" in %s not valid! (%s)\n",
         __func__, filename, par->starts);
         return -1;
     }
@@ -103,14 +103,14 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first, struct
     char *ret;
     ret=strptime(str, "%Y-%m-%d %H:%M:%S", &(par->tmb));
     if (*ret!='\0' || ret==NULL){ //error
-        logErrDate("%s: could not parse \"start\" in %s not valid! (%s)\n",
+        fprintf(stderr,"%s: could not parse \"start\" in %s not valid! (%s)\n",
             __func__, filename, par->starts);
         return -1;
     }
    
     //file name check
     if (fnts_p->tv_sec != (long int)(timegm(&par->tmb))){
-        logErrDate( "%s: corrupt data! file name does not match start date!\n"
+        fprintf(stderr, "%s: corrupt data! file name does not match start date!\n"
                     "filename=%ld.nc,  start=%s\n",__func__, fnts_p->tv_sec,  str);
         return -1;
     }
@@ -131,7 +131,7 @@ int get_nc_params(const char *file_in_dir, struct params *par, int first, struct
         //assert if parameters are equal through different files
         if (parM.sps - par->sps > FLT_EPSILON || parM.chnumber != par->chnumber 
         || parM.length != par->length ) {
-            logErrDate("%s: severe error: parameter mismatch at file %s\n",__func__,filename);
+            fprintf(stderr,"%s: severe error: parameter mismatch at file %s\n",__func__,filename);
             return -1;
         }
         
@@ -150,7 +150,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     char varstr[3+1]; //channel name e.g. "ch1"
     if (count < 2 || file_in_dir == NULL || file_out == NULL || tstart == 0 ||
         pos_p == NULL || fnts_p == NULL){
-        logErrDate("%s: parameter error!\nExit\n",__func__);
+        fprintf(stderr,"%s: parameter error!\nExit\n",__func__);
         return -1;
     }
     if (count < 60){
@@ -159,14 +159,14 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     }
     
     if (mkdir_filename(file_out) < 0){
-        logErrDate("%s: Could not create output directory!\nExit\n",__func__);
+        fprintf(stderr,"%s: Could not create output directory!\nExit\n",__func__);
         return -1;
     }
 
     // open file to write
     status = nc_create(file_out, NC_CLOBBER|NC_NETCDF4, &ncid_out);
     if (status != NC_NOERR){ //possible errors: NC_ENOMEM, NC_EHDFERR, NC_EFILEMETA
-        logErrDate("%s: Could not open file %s to write! nc_create: %s\nExit\n",
+        fprintf(stderr,"%s: Could not open file %s to write! nc_create: %s\nExit\n",
         __func__,file_out,nc_strerror(status));
         return -1;
     }
@@ -183,7 +183,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     for (k=0; k<par.chnumber; k++){
         chp[k] = calloc((size_t)nnumb, sizeof(float));
         if (chp[k] == NULL){
-            logErrDate("%s: Could not allocate memory of size %ld kB!\nExit\n",
+            fprintf(stderr,"%s: Could not allocate memory of size %ld kB!\nExit\n",
             __func__, (nnumb*sizeof(float)/1024L)+1);
             return -1;            
         }
@@ -201,26 +201,26 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         // define dimensions 
         status = nc_def_dim(ncid_out, varstr, totallen, &out_dimid[k]);
         if (status != NC_NOERR){
-            logErrDate("%s: nc_def_dim param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            fprintf(stderr,"%s: nc_def_dim param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }
         // define variables
         status = nc_def_var(ncid_out, varstr, NC_FLOAT, 1, &out_dimid[k], &out_varid[k]);
         if (status != NC_NOERR){
-            logErrDate("%s: nc_def_var param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            fprintf(stderr,"%s: nc_def_var param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             FREE_AND_RETURN(-1);
         } 
         // assign per-variable attributes
         status = nc_put_att_text(ncid_out, out_varid[k], "units", 2, "mV");
         if (status != NC_NOERR){
-            logErrDate("%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            fprintf(stderr,"%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }
         //define fill variable
         float nan=NAN;
         status = nc_def_var_fill(ncid_out, out_varid[k], 0, &nan);
         if (status != NC_NOERR){
-            logErrDate("%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
+            fprintf(stderr,"%s: param %s: %s\nExit\n",__func__,varstr,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }        
     }
@@ -252,7 +252,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         
         memtr=calloc(par.length, sizeof(float));
         if (memtr == NULL){
-            logErrDate("%s: Could not allocate memory of size %ld kB!\nExit\n",
+            fprintf(stderr,"%s: Could not allocate memory of size %ld kB!\nExit\n",
             __func__, (par.length*sizeof(float)/1024L)+1);
             FREE_AND_RETURN(-1);
         }        
@@ -266,7 +266,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
 
         status = nc_open(file_in, NC_NOWRITE, &ncid_in);
         if (status != NC_NOERR){ 
-            logErrDate("%s: Could not open file %s to read! nc_open: %s\nExit\n",
+            fprintf(stderr,"%s: Could not open file %s to read! nc_open: %s\nExit\n",
             __func__,file_in,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }
@@ -276,7 +276,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
             sprintf(varstr,"%s%ld","ch",k+1); //ch1, ch2 ...
             status = nc_inq_varid(ncid_in, varstr, &varid[k]);
             if (status != NC_NOERR){
-                logErrDate("%s: Could not find variable %s in %s! nc_inq_varid: %s\nExit\n",
+                fprintf(stderr,"%s: Could not find variable %s in %s! nc_inq_varid: %s\nExit\n",
                 __func__, varstr, file_in, nc_strerror(status));
                 FREE_AND_RETURN(-1);
             }
@@ -286,7 +286,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
                 //read in all data to temporary memory: memtr
                 status = nc_get_var_float(ncid_in, varid[k], memtr);
                 if (status != NC_NOERR){
-                    logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
+                    fprintf(stderr,"%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
                     __func__, varstr, file_in, nc_strerror(status));
                     FREE_AND_RETURN(-1);
                 }
@@ -301,7 +301,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
             else { //insert values at position given by array pos
                 status = nc_get_var_float(ncid_in, varid[k], chp[k]+*(pos_p+j));
                 if (status != NC_NOERR){
-                    logErrDate("%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
+                    fprintf(stderr,"%s: Error while reading variable %s in %s! nc_get_var_float: %s\nExit\n",
                     __func__, varstr, file_in, nc_strerror(status));
                     FREE_AND_RETURN(-1);
                 }
@@ -311,9 +311,9 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         
         //update inserted values counter 
         if (*(pos_p+j)+(long)par.length > totallen) //for the last file 
-			ins_cnt+=(totallen - par.length);
+            ins_cnt+=(totallen - par.length);
         else
-			ins_cnt+=par.length;
+            ins_cnt+=par.length;
         
         status=nc_close(ncid_in);
         CHECK_NC_ERR_FREE("nc_close inputs");
@@ -334,7 +334,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     for (k=0; k<par.chnumber; k++){ //for as many channels
         status = nc_put_vara_float(ncid_out, out_varid[k], s_start, s_count, chp[k]);
         if (status != NC_NOERR){
-            logErrDate("%s, nc_put_vara_float ch%ld: %s\nExit\n",__func__,k+1,nc_strerror(status));
+            fprintf(stderr,"%s, nc_put_vara_float ch%ld: %s\nExit\n",__func__,k+1,nc_strerror(status));
             FREE_AND_RETURN(-1);
         }
         status = nc_sync(ncid_out); //ensure it is written to disk        
@@ -362,7 +362,7 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
     //file sanity check 
     if (count>58 && abs(j*fsize_in - fsize_out) > 512*1024){ //less than 0.5MiB deviation
         printf("file sanity check numb:%ld, fsize_in: %.2fMiB\n",j,fsize_in/1024.0/1024.0);        
-        logErrDate("%s: file sizes seems not to be ok!\nNo deletion! Exit\n",__func__);
+        fprintf(stderr,"%s: file sizes seems not to be ok!\nNo deletion! Exit\n",__func__);
         FREE_AND_RETURN(-1);
     }
 
@@ -396,7 +396,7 @@ int cmpfunc_time(const void *aa, const void *bb)
 int getSortedFileList(const char *datadir, struct timespec *fnts_p)
 {
     if (datadir==NULL || fnts_p==NULL){
-        logErrDate("%s: parameter error!\n",__func__);
+        fprintf(stderr,"%s: parameter error!\n",__func__);
         return -1;
     }
     DIR *dir;
@@ -412,7 +412,7 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
         }
         closedir (dir);
     } else {
-        logErrDate("%s: could not open directory %s\n",__func__,datadir);
+        fprintf(stderr,"%s: could not open directory %s\n",__func__,datadir);
         return -1;
     }    
     printf("   %d files counted\n",ind-2);
@@ -421,7 +421,7 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
     time_t *p;
     p = (time_t *)calloc(ind, sizeof(time_t));
     if (p == NULL){
-        logErrDate("%s: could not allocate memory\n",__func__);
+        fprintf(stderr,"%s: could not allocate memory\n",__func__);
         return -1;
     }
     
@@ -432,7 +432,7 @@ int getSortedFileList(const char *datadir, struct timespec *fnts_p)
             if (!strcmp(ent->d_name,".") || !strcmp(ent->d_name,".."))
                 continue;
             if (sscanf(ent->d_name,"%ld.nc",&l) != 1){
-                logErrDate("%s: not a valid file %s\n",__func__,ent->d_name); 
+                fprintf(stderr,"%s: not a valid file %s\n",__func__,ent->d_name); 
                 continue;
             }
         
@@ -472,7 +472,7 @@ int mkdir_filename(const char *dir_name)
             if (stat(tmp, &st) == -1) { //if dir does not exists, try to create it
                 printf("Creating directory %s\n",tmp);
                 if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXG | S_IXOTH)){
-                    logErrDate("%s: could not create directory %s!\n",__func__,tmp);
+                    fprintf(stderr,"%s: could not create directory %s!\n",__func__,tmp);
                     return -1;
                 }
             }       
@@ -488,12 +488,12 @@ int delete_file(char *file_in_dir, struct timespec *ts, int dryrun)
     sprintf(str,"%s%ld.nc",file_in_dir,ts->tv_sec);    
     
     if (cnt++ < 60){
-		if (dryrun){
+        if (dryrun){
             printf("%s would be deleted\n",str);
             return 0;            
-		}
+        }
         if(unlink(str)==-1){
-            logErrDate("%s: failed to delete file %s\n",__func__,str);
+            fprintf(stderr,"%s: failed to delete file %s\n",__func__,str);
             return -1;
         } 
         else {
@@ -520,6 +520,7 @@ time_t calcNextFullHour(const struct tm *now, struct tm *tp1h, int hour)
 
 int main(int argc, char * argv[])
 {
+    
     int i,j,ind;
     char file_in_dir[255];
     char file_out_dir[255];
@@ -541,8 +542,8 @@ int main(int argc, char * argv[])
     i = getSortedFileList(file_in_dir, &fnts[0]);
     printf("%d files (>%i hours) found.\n",i,i/60);
     if (i<=0){
-        logErrDate("No files to process!?\n");
-        return -1;
+        fprintf(stderr,"No files to process!?\n");
+        return 1;
     }
 #ifdef DEBUG_LIST  
     //diagnostic output: list all files (sorted)
@@ -587,8 +588,8 @@ int main(int argc, char * argv[])
     sprintf(daystr, "%04d/%02d/%02d", tp0h.tm_year+1900, tp0h.tm_mon+1, tp0h.tm_mday);
 
     if (get_nc_params(file_in_dir, &parM, 1, &fnts[0]) <0){
-        logErrDate("Error while reading parameters in %s!\nExit\n",file_in);
-        return -1;
+        fprintf(stderr,"Error while reading parameters in %s!\nExit\n",file_in);
+        return 1;
     }   
 
     
@@ -612,9 +613,9 @@ int main(int argc, char * argv[])
         sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);       
         
         if (get_nc_params(file_in_dir, &parS, 0, &fnts[ind]) < 0){
-            logErrDate("%d. file (%s) parameter assert error!\n Skipping\n",ind,file_in);
+            fprintf(stderr,"%d. file (%s) parameter assert error!\n Skipping\n",ind,file_in);
             delete_file(file_in_dir, &fnts[ind], 0); //delete always, irrespect of -d flag
-            return -1;
+            return 1;
         }
         
         /* usually, the hour starts with the file beginning in the 59th 
@@ -625,8 +626,8 @@ int main(int argc, char * argv[])
         //file begins before hour, need to find out when exactly
         if (fnts[ind].tv_sec < t0h){
             if (t0h - fnts[ind].tv_sec > 60){ //panic
-                logErrDate("file %ld.nc (%s) out of time range!\n",fnts[ind].tv_sec, parS.starts);
-                return -1;
+                fprintf(stderr,"file %ld.nc (%s) out of time range!\n",fnts[ind].tv_sec, parS.starts);
+                return 1;
             }
             //calculate decimal seconds (02:59:32.544123 -> 32.544123) 
             dec_sec=(float)parS.tmb.tm_sec + (float)(fnts[ind].tv_nsec*1E-9);
@@ -659,7 +660,7 @@ int main(int argc, char * argv[])
            
                 if (labs(diff) < 1E9) //display only if jitter < 1s
                     printf("\t%+4.0f",diff/1E3);
-			}
+            }
 
             printf("\n %2d: %ld.nc = %s\t%9ld",ind+1, fnts[ind].tv_sec, parS.starts+11,  pos[ind]);
             
@@ -673,7 +674,7 @@ int main(int argc, char * argv[])
     //print the next file which IS NOT in the hour anymore
     sprintf(file_in,"%s%ld.nc",file_in_dir,fnts[ind].tv_sec);       
     if (get_nc_params(file_in_dir, &parS, 0, &fnts[ind]) < 0){
-        logErrDate("further %d. file (%s) parameter assert error!\n",ind,file_in);
+        fprintf(stderr,"further %d. file (%s) parameter assert error!\n",ind,file_in);
     }
     printf("(  : %ld.nc = %s) <- not included\n",fnts[ind].tv_sec, parS.starts);
     
@@ -691,32 +692,32 @@ int main(int argc, char * argv[])
     i=0;
     if (ind>1){
         if ((i=concat_nc_data(file_in_dir, ind, file_out, t0h, pos, fnts)) < 0){
-            logErrDate("Error while concatenating!\n");
+            fprintf(stderr,"Error while concatenating!\n");
         }
     }     
 
-	/* if the files are more than 3 days older, delete them (else the -d 
-	 * flag /dryrun/ is set. */
-	int dryrun=1; //default no delete
-	time_t rightnow;
-	time(&rightnow);
-	if (rightnow - fnts[0].tv_sec > 3*24*60*60 )
-		dryrun=0;
-	if (argc>1 && !strcmp(argv[1],"-d"))
-		dryrun=1;
-	if (!dryrun)
-		printf("info: deleting files since older than 3 days\n");
+    /* if the files are more than 3 days older, delete them (else the -d 
+     * flag /dryrun/ is set. */
+    int dryrun=1; //default no delete
+    time_t rightnow;
+    time(&rightnow);
+    if (rightnow - fnts[0].tv_sec > 3*24*60*60 )
+        dryrun=0;
+    if (argc>1 && !strcmp(argv[1],"-d"))
+        dryrun=1;
+    if (!dryrun)
+        printf("info: deleting files since older than 3 days\n");
 
-	
+    
     /* after EVERY run the first file will be deleted */
     if(delete_file(file_in_dir, &fnts[0], dryrun)){
-        logErrDate("failed to delete files.\nExit\n");
-        return -1;
+        fprintf(stderr,"failed to delete files.\nExit\n");
+        return 1;
     }
     
     if (ind < 2){
         printf("nothing to do!\n Exit\n");
-        return 0;
+        return 2;
     }
     
     /* if exactly as many files as requested (or at highest one fewer) 
@@ -726,8 +727,8 @@ int main(int argc, char * argv[])
     if (i >= 2) {
         for (j=1; j<i-1 && j<60; j++){
             if(delete_file(file_in_dir, &fnts[j], dryrun)){
-                logErrDate("failed to delete file %ld.nc.\nExit\n",fnts[j].tv_sec);
-                return -1;
+                fprintf(stderr,"failed to delete file %ld.nc.\nExit\n",fnts[j].tv_sec);
+                return 1;
             }
         }
         //check last processed file
@@ -735,17 +736,26 @@ int main(int argc, char * argv[])
         //printf("last file %02d:%02d:%02d\n",tp.tm_hour,tp.tm_min,tp.tm_sec);
         if (tp.tm_min != 59){
             if(delete_file(file_in_dir, &fnts[i-1], dryrun)){
-                logErrDate("failed to delete files.\nExit\n");
-                return -1;
+                fprintf(stderr,"failed to delete files.\nExit\n");
+                return 1;
             }
             j++; 
         }
-        if (!dryrun)
-			printf("%d files deleted from %s\n",j,file_in_dir);
+        if (dryrun){
+            return 2;
+        }
+        else {
+            printf("%d files deleted from %s\n",j,file_in_dir);
+            fflush(stdout);
+            return 0;
+        }
     }
     else {
         printf("Requested %d files to concatenate, but only %d performed.\n",ind,i);
+        printf("Manual action needed!\n");
+        fflush(stdout);
         fprintf(stderr,"Manual action needed!\n");
+        return 1;
     }
     return 0;
 }

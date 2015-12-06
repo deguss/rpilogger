@@ -1,5 +1,18 @@
 #!/usr/bin/python -u
 
+'''
+    ============= tail -f forwarder over websocket protocol ==============
+    This is a service which monitors file (defined in logfiles.txt) 
+    and forwards file changes on the port defined below. The www-diagnostic 
+    page of the datalogger is based on this. 
+    The result is a "tail -f" of multiple files in real time on the webpage.
+    
+    author:     Daniel Piri
+    web:        http://opendatalogger.com
+    licence:    public GPL, (CC-BY-NC-SA), free software, non-commercial
+        
+'''
+
 from datetime import datetime
 import sys, os, time
 
@@ -15,7 +28,7 @@ else:
     time.sleep(5) #to prevent initv to respawn too fast        
     
     #redirect stdin, stdout
-    logfile=os.path.join(_dirn,"log-tailf.log")
+    logfile=os.path.join(_dirn,"log/tailf-server.log")
     unbuffered = open(logfile, 'w', 0)
     sys.stdout = unbuffered
     sys.stderr = unbuffered
@@ -24,9 +37,9 @@ else:
 tailfiles=os.path.join(_dirn,"logfiles.txt")
 logs=[]
 with open(tailfiles) as fl:
-	for line in fl:
-		logs.append('-f')
-		logs.append(line.rstrip('\n'))
+    for line in fl:
+        logs.append('-f')
+        logs.append(line.rstrip('\n'))
 
 
 from twisted.internet import reactor, protocol

@@ -1,0 +1,14 @@
+This directory includes the services 
+
+- tailf-server for websocket connections (real-time display of log files on 
+a website (like on that of the dataloggers own diagnostic page))
+- reboot-server which listens on a TCP port for a "key" and 
+also checks the presense of the file /home/pi/delete_to_reboot intended to 
+remotely reboot the machine if sshd might hang.
+
+These 2 are respawned from inittab! Do not modify path of name!
+
+Furthermore, there is a script online.sh or online_ssh.sh
+- which is intended to send heartbeat signal to a remote server / and create remote
+ssh connection if needed. If not needed and you decide to remove, check crontabs/cronjobs 
+to clean up correspondingly.
