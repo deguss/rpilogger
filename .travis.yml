@@ -8,7 +8,8 @@ before_install:
  - cd opendatalogger
  - make clean
  # Install necessary packages from apt-get
- #- apt-get install netcdf-bin libnetcdf-dev
+ - sudo apt-get update -qq
+ - sudo apt-get install -y netcdf-bin libnetcdf-dev
 script:
  - make all
 after_success:
