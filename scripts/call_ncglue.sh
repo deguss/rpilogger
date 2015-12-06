@@ -1,6 +1,7 @@
 #!/bin/bash 
 #set -e
 test -e /opt/opendatalogger/ncglue || exit 1
+
 echo
 date
 
@@ -29,8 +30,11 @@ do
         cd /home/pi/data
         rsync -av --exclude tmp/ /home/pi/data/ $REMOTEHOST:$SHRHOST-data/
         
-        RETCODE=$?
-        echo "retcode $RETCODE"
+        if [ $? -eq 0 ]; then  #if successful, delete local files
+            find /home/pi/data/ -mindepth 3 -type f -exec rm {} \;
+            echo "files deleted"
+        fi
+        
         cd $OPWD
         exit 0
         ;;
