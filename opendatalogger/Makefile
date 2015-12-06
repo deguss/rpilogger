@@ -127,6 +127,7 @@ endif
 
 	#install cron.hourly job
 	cp ../conf/etc/cron.hourly/cron_ncglue /etc/cron.hourly/.
+	chmod +x /etc/cron.hourly/cron_ncglue
 	
 	@echo -e "$(OK_COLOR)[OK]$(NO_COLOR)"
 	@echo "start the service by          sudo /etc/init.d/opendatalogger start"

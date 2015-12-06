@@ -25,18 +25,25 @@ do
         ;;
       2) # exit code for finished job
         echo "job seems to be ready"
-        echo "rsyncing to $REMOTEHOST:$SHRHOST-data/"
-        OPWD=`pwd`
-        cd /home/pi/data
-        rsync -av --exclude tmp/ /home/pi/data/ $REMOTEHOST:$SHRHOST-data/
         
-        if [ $? -eq 0 ]; then  #if successful, delete local files
-            find /home/pi/data/ -mindepth 3 -type f -exec rm {} \;
-            echo "files deleted"
+        if [ -s `pgrep -n rsync` ] ; then
+        
+            echo "rsyncing to $REMOTEHOST:$SHRHOST-data/"
+            OPWD=`pwd`
+            cd /home/pi/data
+            rsync -av --exclude tmp/ /home/pi/data/ $REMOTEHOST:$SHRHOST-data/
+            
+            if [ $? -eq 0 ]; then  #if successful, delete local files
+                find /home/pi/data/ -mindepth 3 -type f -exec rm {} \;
+                echo "files deleted"
+            fi
+            
+            cd $OPWD
+            exit 0
+        else
+            echo "rsync is already running. terminating"
+            exit 0
         fi
-        
-        cd $OPWD
-        exit 0
         ;;
       *) #
         echo "ncglue: undefined exit code"
