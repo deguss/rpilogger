@@ -471,7 +471,7 @@ int mkdir_filename(const char *dir_name)
             snprintf(tmp, (size_t)(i+1), dirname);
             if (stat(tmp, &st) == -1) { //if dir does not exists, try to create it
                 printf("Creating directory %s\n",tmp);
-                if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH)){
+                if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO)){
                     fprintf(stderr,"%s: could not create directory %s!\n",__func__,tmp);
                     return -1;
                 }

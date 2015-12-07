@@ -1,26 +1,28 @@
 language: c
+
 os:
  - linux
+
 compiler:
  - gcc
+
 before_install:
  # remove binary
  - cd opendatalogger
  - make clean
+
  # Install necessary packages from apt-get
  - sudo apt-get update -qq
  - sudo apt-get install -y netcdf-bin libnetcdf-dev
+
 script:
  - make all
+
 after_success:
  # Deploy the source code
- #- cd ..
- #- "./misc/deploy_code.sh"
  # Build the documentation and upload it to SF
- #- "./misc/publish_html.sh"
 
 notifications:
-# recipients:
-#    - builds@acadotoolkit.org
-  email:
-    on_failure: always
+
+email:
+  on_failure: always
