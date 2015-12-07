@@ -95,7 +95,7 @@ if ($data['response'] != $valid_response) //(wrong user/pwd)
 //echo 'You are logged in as: ' . $data['username'] . '<br>';
 
 if (isset($_POST['submit'])){ 
-    $path="/home/pi/rpilogger";
+    $path="/opt/opendatalogger/";
     $ans="";
     $connection = ssh2_connect('127.0.0.1', 22);
 
@@ -108,8 +108,8 @@ if (isset($_POST['submit'])){
     }
     elseif ($_POST['submit']=="submit_ads"){
         $stream = ssh2_exec($connection, 'sudo /etc/init.d/opendatalogger restart'); 
-		stream_set_blocking($stream, true);
-		$stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
+        stream_set_blocking($stream, true);
+        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
         $ans.='<br />'.$stream_out;
     }
 
