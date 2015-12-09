@@ -1,6 +1,5 @@
-
 # Start watchdog at boot time? 0 or 1
-run_watchdog=1
+run_watchdog=0
 # Load module before starting watchdog
 watchdog_module="bcm2708_wdog"
 # Specify additional watchdog options here (see manpage).
