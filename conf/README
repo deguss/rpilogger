@@ -1,3 +1,4 @@
+### note
 This is a directory containing almost all modified system 
 configuration files compared to the Raspbian wheezy distro.
 If you have downloaded the image from http://opendatalogger.com
@@ -5,3 +6,13 @@ there is no need to do anythin with these.
 
 It is maintained for helping to port the config files to another
 distro more easily. Written by Daniel Piri 2015
+
+### iptables
+list iptable rules
+    iptables -L
+
+set rules
+    iptables-restore < /etc/iptables.rules
+
+if fine, please export
+    iptables-save > /etc/iptables.up.rules

@@ -23,3 +23,6 @@
 /etc/profile
 /etc/environment
 /etc/php5/cgi/php.ini
+/etc/network/if-pre-up.d/iptables
+/etc/iptables.rules
+/etc/iptables.up.rules
