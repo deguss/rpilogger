@@ -8,10 +8,10 @@ SHELL:=/bin/bash
 VPATH:=src
 TARGET:=ads
 DEPLOY:=/opt/opendatalogger
-CC:=gcc-4.6
+CC:=cc  # compatibility issues (CC:=gcc-4.6)
 CCFLAGS:=-std=gnu99 -O3
 WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
-LDFLAGS:=-lrt -lnetcdf -lm -lpthread
+LDFLAGS:=-lrt -lnetcdf -lm -lpthread -I/usr/include
 OBJECTS:=main.c i2c.c system.c inifile.c filelock.c iniparser.c dictionary.c
 
 now=$(shell date "+%F %T %z")
