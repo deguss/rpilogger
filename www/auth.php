@@ -109,14 +109,14 @@ if (isset($_POST['submit'])){
     elseif ($_POST['submit']=="submit_ads"){
         $stream = ssh2_exec($connection, 'sudo /etc/init.d/opendatalogger restart'); 
         stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
+        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO);
         $ans.='<br />'.$stream_out;
     }
 
     elseif ($_POST['submit']=="submit_ntp"){
         $stream = ssh2_exec($connection, 'sudo /etc/init.d/ntp restart'); 
         stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
+        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
 
         $ans.='<br />'.stream_get_contents($stream);
     }
@@ -124,7 +124,7 @@ if (isset($_POST['submit'])){
     elseif ($_POST['submit']=="submit_vsftpd"){
         $stream = ssh2_exec($connection, 'sudo /etc/init.d/vsftpd restart'); 
         stream_set_blocking($stream, true);
-        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
+        $stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO); //SSH2_STREAM_STDIO); //SSH2_STREAM_STDERR
 
         $ans.='<br />'.stream_get_contents($stream);
     }
