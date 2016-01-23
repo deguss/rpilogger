@@ -8,10 +8,11 @@ SHELL:=/bin/bash
 VPATH:=src
 TARGET:=ads
 DEPLOY:=/opt/opendatalogger
-CC:=gcc-4.6
-CCFLAGS:=-std=gnu99 -O3
-WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused
-LDFLAGS:=-lrt -lnetcdf -lm -lpthread
+CC:=cc # compatibility issues gcc-4.6
+CFLAGS:=-std=gnu99 -O3 
+WFLAGS:=-Wall -Wextra -Wno-missing-field-initializers -Wfatal-errors -Wunused #--verbose
+LDFLAGS:=-lrt -lm -lpthread -pthread 
+LDFLAGS+= $(shell nc-config --libs)
 OBJECTS:=main.c i2c.c system.c inifile.c filelock.c iniparser.c dictionary.c
 
 now=$(shell date "+%F %T %z")
@@ -53,10 +54,10 @@ ads: $(OBJECTS)
 	@$(CC) -v 2> build/gccinfo
 	
 	# save compiler flags into file flaginfo
-	@echo "$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^" > build/flaginfo
+	@echo "$(CC) $(PREPROC) -o build/$(TARGET) $^ $(CFLAGS) $(LDFLAGS) $(WFLAGS)" > build/flaginfo
 	
 	# compile (and save output to file buildinfo)
-	$(CC) $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o build/$(TARGET) $^ 2>&1 | tee build/buildinfo
+	$(CC) $(PREPROC) -o build/$(TARGET) $^ $(CFLAGS) $(LDFLAGS) $(WFLAGS) 2>&1 | tee build/buildinfo
 	
 	@if test -e build/$(TARGET); then \
 echo -e "$(OK_COLOR)[OK] all done$(NO_COLOR)"; \
@@ -67,7 +68,7 @@ echo -e "$(ERROR_COLOR)compilation failed$(NO_COLOR)"; \
 fi
 
 ncglue: ncglue.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(WFLAGS) src/ncglue.c -o build/ncglue
+	$(CC) -o build/ncglue src/ncglue.c $(CFLAGS) $(LDFLAGS) $(WFLAGS)  
 
 install_ncglue: build/ncglue
 ifneq ($(user),root)
@@ -86,15 +87,15 @@ clean:
 debug: $(OBJECTS)
 	@rm -r -f build
 	@mkdir -p debug
-	@$(CC) -E $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) $^ > debug/ads.obj
-	$(CC) -g $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
+	@$(CC) $(PREPROC) -E $^ $(CFLAGS) $(LDFLAGS) $(WFLAGS)  > debug/ads.obj
+	$(CC) -g -o debug/$(TARGET) $^ $(PREPROC) $(CFLAGS) $(LDFLAGS) $(WFLAGS) 
 	@echo "ready for debugging. use gdb"
 
 gcov: $(OBJECTS)
 	@rm -r -f build
 	@rm -r -f debug
 	@mkdir -p debug
-	$(CC) -fprofile-arcs -ftest-coverage $(CFLAGS) $(PREPROC) $(LDFLAGS) $(WFLAGS) -o debug/$(TARGET) $^
+	$(CC) -fprofile-arcs -ftest-coverage -o debug/$(TARGET) $^ $(PREPROC) $(CFLAGS) $(LDFLAGS) $(WFLAGS) 
 	@echo "ready for coverage analysis. use gcov src/main.c and check main.c.gcov"	
 	
 install: build/ads build/ncglue
