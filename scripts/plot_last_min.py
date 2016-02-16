@@ -22,16 +22,24 @@ def readfiles():
     import socket
     
     global t, ch1, ch2, sps, sampl, title
-    
+
+    """
     files = sorted(os.listdir(_LOCATION_IN))
     d=len(files)
-    fn=int(files[-1][:-3]) #remove ending ".nc" and convert to seconds
+    """
+    import glob
+    newest = os.path.basename(min(glob.iglob('data/tmp/*'), key=os.path.getctime))
+    d=0
+    fn=int(newest[:-3])
+    #newest=files[-1]
+    #fn=int(newest[:-3]) #remove ending ".nc" and convert to seconds
+    
     ts1=time.gmtime(fn)    #broken down time format
     title=time.strftime("%F %T %z",ts1)+' on '+socket.gethostname()
-    print "%d files found, most recent: %d.nc (%s)" % (len(files), fn, title)
+    print "%d files found, most recent: %d.nc (%s)" % (d, fn, title)
     
     try:
-        fid = netcdf.Dataset(os.path.join(_LOCATION_IN,files[-1]), 'r')
+        fid = netcdf.Dataset(os.path.join(_LOCATION_IN,newest), 'r')
     except:
         print "Unexpected error while reading file: %s" % (os.path.join(_LOCATION_IN,files[-1]))
         return -1

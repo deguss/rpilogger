@@ -1,4 +1,7 @@
-<?php 
+<?php
+$host=exec("hostname");
+$shost=str_replace('rpi-','',$host);
+
 function test_proc($name,$desc=''){
     $pids=0;
     exec('pgrep '.$name, $pids);
@@ -25,31 +28,7 @@ function test_proc($name,$desc=''){
     <link href="style.css" type="text/css" rel="stylesheet">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Cache-Control" content="no-cache">
-    <title>OpenDataLogger Diagnostics for <?php print exec("hostname"); ?></title>
-    <!-- script language="javascript" type="text/javascript">
-        function showIFrame() {  
-            var btn = document.getElementById("iframe1btn");    
-            var ph = document.getElementById("iframe1ph");    
-            var ifrm = document.getElementById('iframe1');
-            if (ifrm == null){
-                ifrm = document.createElement('iframe');
-                ifrm.setAttribute('id', 'iframe1'); // assign an id
-                btn.parentNode.insertBefore(ifrm, ph); // to place before another page element
-                btn.value="Hide";
-                ifrm.setAttribute('src', 'http://geodata.ggki.hu/pid/plotm.html');          // assign url
-                ifrm.setAttribute('frameborder', '1');
-                ifrm.setAttribute('scrolling', 'no');
-                ifrm.setAttribute('width', '900px');
-                ifrm.setAttribute('height', '550px');
-                console.log('iframe1 created');
-            }
-            else {
-                btn.value="View";
-                ifrm.remove();
-                console.log('iframe1 removed');
-            }
-        }  
-    </script -->
+    <title>Diagnostics for <?php print $host; ?></title>
     <script type="text/javascript" src="jquery-2.1.4.min.js"></script>
     <script type="text/javascript">
       function add(text){
@@ -89,7 +68,7 @@ function test_proc($name,$desc=''){
     }
 ?> 
 
-<h3><?php print exec("hostname");?></h3>
+<h3><?php print $host; ?></h3>
 <div><form method="post" action="auth.php">
     <table id="proc_table"> 
         <?php // alternative way: /etc/init.d/lighttp status
@@ -114,14 +93,16 @@ function test_proc($name,$desc=''){
             $hours = $uptime/60/60%24;
             $mins = $uptime/60%60;
             echo sprintf("&emsp;&emsp;&emsp;ads uptime: %d days %02d:%02d",$days,$hours,$mins).'<br />'.PHP_EOL;
+            echo sprintf('&emsp;&emsp;&emsp;ads (%%CPU %%MEM) %s', exec('ps -p $(pgrep ads) -o %cpu,%mem')) . '<br />'.PHP_EOL;
             
             $bytes = disk_free_space(".");
             $si_prefix = array( 'B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB');
             $base = 1000;
             $class = min((int)log($bytes , $base) , count($si_prefix) - 1);
             echo sprintf('free disk: %1.2f' , $bytes / pow($base,$class)) . ' ' . $si_prefix[$class] . '<br />'.PHP_EOL;
-            //echo sprintf('%s', exec('/opt/vc/bin/vcgencmd measure_temp')) . ' <br />';
-            //echo sprintf('ads: %%CPU/%%MEM %s', exec('ps -p $(pgrep ads) -o %cpu,%mem')) . '<br />';
+            //echo sprintf('%s', exec('/opt/vc/bin/vcgencmd measure_temp')) . ' <br />'.PHP_EOL;
+            echo sprintf('internal temp. %d°C', intval(exec('cat /sys/class/thermal/thermal_zone0/temp'))/1000 ) . ' <br />'.PHP_EOL;
+            
             //echo "<a href=\"rpilogger/checker.txt\" target=\"_blank\">ads checker.log</a> &emsp;"; //."<br />".PHP_EOL;
             //echo "<a href=\"rpilogger/log\" target=\"_blank\">all ads logs</a>"."<br />".PHP_EOL;
             //echo "<a href=\"rpilogger/catnc.txt\" target=\"_blank\">catnc.log</a>"."<br />".PHP_EOL;
@@ -132,38 +113,11 @@ function test_proc($name,$desc=''){
     <textarea rows="15" cols="85" id="tBox" wrap="off" readonly></textarea>
 <input type="reset" value="Clear"></input>
 </form></div>
-<hr />
-<h3>data visualization</h3>
-<img src="charts/last_time.png"></img>
-<br />
-<img src="charts/last_psd_res.png"></img>
-<hr />
 
-<!-- script type="text/javascript" src="jquery-2.1.4.min.js"></script>
-<script type="text/javascript"> 
-    function loadpage(clicked_id){
-        if (clicked_id =="datasetview"){
-            console.log('loading dataset') 
-            $("div#phdataset").load("test.php");
-        }
-    }
-</script>
-<div id="phdataset">click view dataset</div>
-<button id="datasetview" type="button" onclick="loadpage(this.id)">view dataset</button-->
-<input type="button" class="button" onclick="window.open('view_dataset.php'); return false;" value="view dataset" />
-
-
-<?php /* hr />
-<h3>realtime viewer </h3>
-<input type="button" id="iframe1btn" onclick="showIFrame()" value="View"></input>
-<br />
-<p id="iframe1ph"></p>
-
-<--iframe src="http://geodata.ggki.hu/pid/plotm.html" frameborder="1" scrolling="no" id="iframe1" width="900px" height="500px" style="visibility:hidden;">
-  <p>Your browser does not support iframes.</p>
-</iframe--> */ ?>
-
-
+<ul>
+    <li><?php print "<a href=\"http://tesla.ggki.hu/data/".$shost."/last/\">plots</a>".PHP_EOL; ?></li>
+    <li><?php print "<a href=\"http://aero.nck.ggki.hu/".$shost."-data/\">data</a>".PHP_EOL; ?></li>
+</ul>
 
 </body>
 </html>
