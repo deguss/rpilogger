@@ -6,7 +6,7 @@ echo
 date
 
 SHRHOST=`hostname` 
-SHRHOST=${SHRHOST//rpi-/} # gets hostname (if neccessary cuts 'rpi-')
+SHRHOST=${SHRHOST//rpi-/} # gets hostname (if neccessary cut 'rpi-')
 
 REMOTEHOST="pid@aero.nck.ggki.hu"
 
@@ -33,8 +33,8 @@ do
             cd /home/pi/data
             rsync -av --exclude tmp/ /home/pi/data/ $REMOTEHOST:$SHRHOST-data/
             
-            if [ $? -eq 0 ]; then  #if successful, delete local files
-                find /home/pi/data/ -mindepth 3 -type f -exec rm {} \;
+            if [ $? -eq 0 ]; then  #if successful, delete local files older than 3 days
+                find /home/pi/data/ -mindepth 3 -mtime +3 -type f -exec rm {} \;
                 echo "files deleted"
             fi
             
