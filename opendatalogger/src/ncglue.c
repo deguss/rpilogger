@@ -366,6 +366,31 @@ int concat_nc_data(const char *file_in_dir, const int count, const char *file_ou
         FREE_AND_RETURN(-1);
     }
 
+    //if everything fine until now, create a symlink in the output_dir/last/
+    char *dir_p;
+    char dir_out[255];
+    char link[255];
+    char file_out_rel[255];
+    strncpy(dir_out, file_out, 255);
+    //dir_p=strrchr(dir_out, '/'); //pointer to last '/': eg: /home/pi/data/2016/06/25[/]filename.nc
+    //we need base name, hence repeat 3 times
+    for (k=0; k<=3; k++){
+        dir_p=strrchr(dir_out, '/');
+        *dir_p='\0';
+    }
+    k=(int)(dir_p-dir_out); //pointer to /home/pi/data[/]2016/06/25/filename.nc
+    //no absolute link possible (because of remote fs), make relative link eg. "../2016/06/25/filename.nc"
+    sprintf(file_out_rel, "..%s", file_out+k);
+    sprintf(link,"%s/last/last1h.nc",dir_out);
+    mkdir_filename(link);    
+    
+    //since symlinks can't be overwritten, delete them before.
+    unlink(link);
+    int r=symlink(file_out_rel, link);
+    if (r==0)
+        printf("symlink (%s) to last file (%s) created.\n",link, file_out_rel);
+    else
+        printf("symlink (%s) to %s failed (%d)!\n",link,file_out_rel,r);
     
     FREE_AND_RETURN(j);
 }

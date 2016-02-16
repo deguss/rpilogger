@@ -33,9 +33,9 @@ pthread_attr_t p_attr;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-//--------------------------------------------------------------------------------------------------
-void *thread_datastore(void * p){ 
-//--------------------------------------------------------------------------------------------------
+void *thread_datastore(void *p)
+{ 
+
     int rc;
     long tpid = (long)syscall(SYS_gettid);
     printf("data-storage thread started with pid: %ld\n",tpid);
@@ -77,9 +77,9 @@ void *thread_datastore(void * p){
 }
 #pragma GCC diagnostic pop
 
-//----------------------------------------------------------------------
-int write_netcdf(){ // generate BINARY file: *.nc (netCDF)   
-//----------------------------------------------------------------------
+
+int write_netcdf() // generate BINARY file: *.nc (netCDF)   
+{ 
     static struct tm tm;
     int i;
     char str[500];
@@ -223,6 +223,22 @@ int write_netcdf(){ // generate BINARY file: *.nc (netCDF)
         }
 
     }
+
+    //create symbolic link
+    //if everything fine until now, create a symlink in the /home/pi/data/last/
+    char link[255];
+    char file_out_rel[255];
+    //no absolute link possible (because of remote fs), make relative link eg. "../tmp/filename.nc"
+    sprintf(file_out_rel,"../tmp/%ld.nc",dst.t2.tv_sec);
+    sprintf(link,"%s/last/last1m.nc",datafiledir);
+    mkdir_filename(link);    
+    
+    //since symlinks can't be overwritten, delete them before.
+    unlink(link);
+    int r=symlink(file_out_rel, link);
+    if (r)
+        printf("symlink (%s) to %s failed (%d)!\n",link,file_out_rel,r);
+    
     return 0;
 } 
 
