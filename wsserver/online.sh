@@ -1,5 +1,6 @@
 #!/bin/bash
-URL="http://opendatalogger.com/update_client.php"
+#URL="http://opendatalogger.com/update_client.php"
+URL="http://tesla.ggki.hu/update_client.php"
 MAC=$(cat /sys/class/net/eth0/address)
 HOST=$(hostname)
 IP=$(hostname -I)
