@@ -1,1 +1,8 @@
 set tabsize 4
+include "/usr/share/nano/asm.nanorc"
+include "/usr/share/nano/c.nanorc"
+include "/usr/share/nano/html.nanorc"
+include "/usr/share/nano/python.nanorc"
+include "/usr/share/nano/sh.nanorc"
+include "/usr/share/nano/tex.nanorc"
+
