@@ -31,7 +31,7 @@ void create_ini_file(char *ini_name)
     
     fprintf(ini,"%s\n"
     "[default]\n"
-    "sps = 500\n"
+    "sps = 125\n"
     "spsadc = 860\n"
     "pga_ch1 = 0\n"
     "pga_ch2 = 0\n"

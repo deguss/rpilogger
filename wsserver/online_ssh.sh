@@ -26,6 +26,6 @@ case "$RES" in
     *)
         echo "[ERROR] no ssh tunnel established! Reconnect on port $ODLPORT"
         ssh -R $ODLPORT:localhost:22 pi@tesla.ggki.hu -p 23 -o ConnectTimeout=30 -f -N
-
+		ssh -R 3001:192.168.1.15:22 pi@tesla.ggki.hu -p 23 -o ConnectTimeout=30 -f -N
         ;;
 esac

@@ -15,36 +15,49 @@ const float overvoltage=5000.0;
 
 //------- These defines should come with compiler flag -D --------------
 #ifndef CFG_ADC1
- #warning "No i2c address defined for ADC1. Will try 0x49"
- #define CFG_ADC1 (0x49)
+    #warning "No i2c address defined for ADC1. Will try 0x49"
+    #define CFG_ADC1 (0x49)
 #endif 
 
 #ifndef CFG_SEQ1_ADC1
- #warning "No sampling sequence defined for ADC1. Will use differential 01"
- #define CFG_SEQ1_ADC1 ADS_CONF_MUX_D_01
+    #warning "No sampling sequence defined for ADC1. Will use differential 01"
+    #define CFG_SEQ1_ADC1 ADS_CONF_MUX_D_01
 #endif
 
 #if defined(CFG_ADC2)
- #ifndef CFG_SEQ2_ADC2
-  #error "ADC sampling sequence not defined however multiple ADC in use"
- #endif
- #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && defined(CFG_SEQ3_ADC1) && defined(CFG_SEQ4_ADC2)
-  #define CFG_NR_CH (4)
- #endif
- #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
-  #define CFG_NR_CH (2)
- #endif 
- #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
-  #error "Not possible to sample 3 channels using 2 ADC-s. Define 2 or 4!"
- #endif  
+    #ifndef CFG_SEQ2_ADC2
+        #error "ADC sampling sequence not defined however multiple ADCs in use"
+    #endif
+    #if defined(CFG_SEQ2_ADC1) || defined(CFG_SEQ4_ADC1)
+        #error "invalid combination of ADCs and sequences"
+    #endif
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && defined(CFG_SEQ3_ADC1) && defined(CFG_SEQ4_ADC2)
+        #define CFG_NR_CH 4
+    #endif
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
+        #define CFG_NR_CH 2
+    #endif 
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC2) && defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
+        #error "Not possible to sample 3 channels using 2 ADC-s. Define 2 or 4!"
+    #endif  
  
 #else //one ADC in use
- #if defined(CFG_SEQ1_ADC1) && !defined(CFG_SEQ2_ADC2) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC2)
-  #define CFG_NR_CH (1)
- #endif
- #if defined(CFG_SEQ2_ADC2) || defined(CFG_SEQ3_ADC1) || defined(CFG_SEQ4_ADC2) 
-  #error "Too many ADC sampling sequences defined."
- #endif
+    #if defined(CFG_SEQ1_ADC1) && !defined(CFG_SEQ2_ADC1) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC1)
+        #define CFG_NR_CH 1
+    #endif
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC1) && !defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC1)
+        #define CFG_NR_CH 2
+    #endif
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC1) && defined(CFG_SEQ3_ADC1) && !defined(CFG_SEQ4_ADC1)
+        #define CFG_NR_CH 3
+    #endif
+    #if defined(CFG_SEQ1_ADC1) && defined(CFG_SEQ2_ADC1) && defined(CFG_SEQ3_ADC1) && defined(CFG_SEQ4_ADC1)
+        #define CFG_NR_CH 4
+    #endif
+        
+    #if defined(CFG_SEQ2_ADC2) || defined(CFG_SEQ4_ADC2) 
+        #error "Too many ADC sampling sequences defined."
+    #endif
 #endif
 
 

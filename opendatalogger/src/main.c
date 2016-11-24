@@ -126,10 +126,47 @@ static inline long calcdiff_us(struct timespec t1, struct timespec t2)
     return (long)diff;
 }
 
+
+static void check_ADS1115(int fd, int addr, int cfg)
+{
+    // Wait a tiny bit to start sampling (10us)
+    static struct timespec tim1 = {.tv_sec=0, .tv_nsec=10e3};
+    static struct timespec rem;
+    nanosleep(&tim1, &rem);
+
+    // Check if the ADC with addr got the right configuration
+    int reg = i2c_read(fd, addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY;
+    
+    if (cfg != reg){
+        printf("adc with addr: %02X cfg-write: %04X, cfg-read: %04X\n",addr, cfg, reg);
+        if (cfg != (i2c_read(fd, addr, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
+            logErrDate("ADS1115 with addr: %02X returned not the specified configuration. Data transfer from ADC to RPi corrupt!\n", addr);
+            exit_all(-1);
+        }
+    }
+}
+
+static float ADS1115_readresult(int fd, int cfg, int pga)
+{
+    struct timespec tim2={.tv_sec=0, .tv_nsec=10e3};
+    struct timespec rem;
+    int ret;
+    // Wait for conversion to complete 
+    while ((i2c_read(fd, cfg, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {  
+        nanosleep(&tim2, &rem); //wait 10us
+    }
+
+    // read conversion register adc1_addr and include sign bit
+    ret = i2c_read(fd, cfg, ADS_PTR_CNV);
+    return twocompl2float(ret, pga);
+}
+
+
 static void getADC_ADS1115(int it) 
 {
-    struct timespec tim1, tim2, rem;
-    int ret, cfg1;
+    static struct timespec tim1 = {.tv_sec=0, .tv_nsec=500e3};
+    static struct timespec rem;
+    int cfg1;
     float pga1;
     const int cfg = ADS_CONF_OS_SNG | ADS_CONF_MODE_SNG | ADS_CONF_CQUE_NONE |
                     (ADS_CONF_DR_MASK & SPSa[SPSc]); //single shot mode
@@ -140,67 +177,61 @@ static void getADC_ADS1115(int it)
         init=0;
     }
 
+    // Trigger sampling ADC1
     cfg1 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ1_ADC1) | (ADS_CONF_PGA_MASK & PGAa[pga[0]]);
     pga1 = PGAv[pga[0]];
     i2c_write(fd, CFG_ADC1, ADS_PTR_CONF, cfg1);     // set config register and start conversion ADS1115       
             
-#if defined(CFG_ADC2) && defined(CFG_SEQ2_ADC2)
-    int cfg2;
-    float pga2;
-    cfg2 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ2_ADC2) | (ADS_CONF_PGA_MASK & PGAa[pga[1]]);
-    pga2 = PGAv[pga[1]];
-    i2c_write(fd, CFG_ADC2, ADS_PTR_CONF, cfg2);
-#endif
-   
-    tim1.tv_sec=0;
-    tim1.tv_nsec=10000;
+        #ifdef CFG_ADC2
+        int cfg2;
+        float pga2;
+        cfg2 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ2_ADC2) | (ADS_CONF_PGA_MASK & PGAa[pga[1]]);
+        pga2 = PGAv[pga[1]];
+        i2c_write(fd, CFG_ADC2, ADS_PTR_CONF, cfg2);
+        #endif
+
+    check_ADS1115(fd, CFG_ADC1, cfg1);
+
+        #ifdef CFG_ADC2
+        check_ADS1115(fd, CFG_ADC2, cfg2);
+        #endif
+
     nanosleep(&tim1, &rem);
-
-
-    //check if the ADC with addr: CFG_ADC1 got the right configuration
-    if (cfg1 != (i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-        printf("adc1: cfg-w: %04X, read: %04X\n",cfg1, i2c_read(fd, CFG_ADC1, ADS_PTR_CONF));
-        if (cfg1 != (i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-            logErrDate("Slave 1 returned not the specified configuration. Data transfer from ADC to RPi corrupt!\n");
-            exit_all(-1);
-        }
-    }
-
-#ifdef CFG_ADC2  
-    //check if the ADC with addr: CFG_ADC2 got the right configuration
-    if (cfg2 != (i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-        printf("adc2: cfg-w: %04X, read: %04X\n",cfg2, i2c_read(fd, CFG_ADC2, ADS_PTR_CONF));
-        if (cfg2 != (i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) | ADS_CONF_OS_BUSY)){
-            logErrDate("Slave 2 returned not the specified configuration. Data transfer from ADC to RPi corrupt!\n");
-            exit_all(-1);
-        }
-    }
-#endif
-
-    // wait for conversion to complete on adc1_addr
-    tim1.tv_sec=0;
-    tim1.tv_nsec=500000; //1/860 /2   //(1000000000.0/SPSv[SPSc])*1.1;
-    tim2.tv_sec=0;
-    tim2.tv_nsec=10000;
-    nanosleep(&tim1, &rem);
-    while ((i2c_read(fd, CFG_ADC1, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {  
-        nanosleep(&tim2, &rem); //wait 10us
-    }
-
-    // read conversion register adc1_addr and include sign bit
-    ret = i2c_read(fd, CFG_ADC1, ADS_PTR_CNV);
-    dst.data[it][0] = twocompl2float(ret,pga1);
+    dst.data[it][0] = ADS1115_readresult(fd, CFG_ADC1, pga1);
     
-#ifdef CFG_ADC2  
-    //check if compleated also on adc2_addr
-    while ((i2c_read(fd, CFG_ADC2, ADS_PTR_CONF) & ADS_CONF_OS_BUSY) == 0) {
-        nanosleep(&tim2, &rem);
-    }
-    // read conversion register adc2_addr
-    ret = i2c_read(fd, CFG_ADC2, ADS_PTR_CNV);
-    dst.data[it][1] = twocompl2float(ret,pga2);
-#endif        
+        #ifdef CFG_ADC2  
+        dst.data[it][1] = ADS1115_readresult(fd, CFG_ADC2, pga2);
+        #endif
 
+
+
+    #ifdef CFG_SEQ2_ADC1 //single sequence
+        cfg1 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ2_ADC1) | (ADS_CONF_PGA_MASK & PGAa[pga[1]]);
+        pga1 = PGAv[pga[1]];
+        i2c_write(fd, CFG_ADC1, ADS_PTR_CONF, cfg1);
+        check_ADS1115(fd, CFG_ADC1, cfg1);
+        nanosleep(&tim1, &rem);
+        dst.data[it][1] = ADS1115_readresult(fd, CFG_ADC1, pga1);
+    #endif
+
+    #ifdef CFG_SEQ3_ADC1 //single sequence
+        cfg1 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ3_ADC1) | (ADS_CONF_PGA_MASK & PGAa[pga[2]]);
+        pga1 = PGAv[pga[2]];
+        i2c_write(fd, CFG_ADC1, ADS_PTR_CONF, cfg1);
+        check_ADS1115(fd, CFG_ADC1, cfg1);
+        nanosleep(&tim1, &rem);
+        dst.data[it][2] = ADS1115_readresult(fd, CFG_ADC1, pga1);
+    #endif
+
+    #ifdef CFG_SEQ4_ADC1 //single sequence
+        cfg1 = cfg | (ADS_CONF_MUX_MASK & CFG_SEQ4_ADC1) | (ADS_CONF_PGA_MASK & PGAa[pga[3]]);
+        pga1 = PGAv[pga[3]];
+        i2c_write(fd, CFG_ADC1, ADS_PTR_CONF, cfg1);
+        check_ADS1115(fd, CFG_ADC1, cfg1);
+        nanosleep(&tim1, &rem);
+        dst.data[it][3] = ADS1115_readresult(fd, CFG_ADC1, pga1);
+    #endif
+    
 }
 
 static float twocompl2float(int value, float pga)
@@ -409,19 +440,30 @@ int main(int argc, char * argv[])
     // Pre-fault stack 
     stack_prefault();
 
-    printf("Channel assignment:\n\tch1=[ADC:%#04x]:",CFG_ADC1);
-    CFG_SEQ_PRINTER(CFG_SEQ1_ADC1);
+    printf("Channel assignment:\n");
+        printf("\tch1=[ADC:%#04x]:",CFG_ADC1);
+        CFG_SEQ_PRINTER(CFG_SEQ1_ADC1);
     #if (CFG_NR_CH > 1)
-        printf("\tch2=[ADC:%#04x]:",CFG_ADC2);
-        CFG_SEQ_PRINTER(CFG_SEQ2_ADC2);
+        #if defined(CFG_SEQ2_ADC1) //single
+            printf("\tch2=[ADC:%#04x]:",CFG_ADC1);
+            CFG_SEQ_PRINTER(CFG_SEQ2_ADC1);
+        #else //alternating
+            printf("\tch2=[ADC:%#04x]:",CFG_ADC2);
+            CFG_SEQ_PRINTER(CFG_SEQ2_ADC2);
+        #endif
     #endif
     #if (CFG_NR_CH > 2)
         printf("\tch3=[ADC:%#04x]:",CFG_ADC1);
         CFG_SEQ_PRINTER(CFG_SEQ3_ADC1);
     #endif                
     #if (CFG_NR_CH > 3)
-        printf("\tch4=[ADC:%#04x]:",CFG_ADC2);
-        CFG_SEQ_PRINTER(CFG_SEQ4_ADC2);
+        #if defined(CFG_SEQ4_ADC1) //single
+            printf("\tch4=[ADC:%#04x]:",CFG_ADC1);
+            CFG_SEQ_PRINTER(CFG_SEQ4_ADC1);
+        #else //alternating
+            printf("\tch4=[ADC:%#04x]:",CFG_ADC2);
+            CFG_SEQ_PRINTER(CFG_SEQ4_ADC2);
+        #endif
     #endif  
 
     FILE *fp;
