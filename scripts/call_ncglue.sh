@@ -32,8 +32,8 @@ do
                 OPWD=`pwd`
                 cd /home/pi/data
                 rsync -av --exclude tmp/ /home/pi/data/ $REMOTEHOST:$SHRHOST-data/
-                if [ $? -eq 0 ]; then  #if successful, delete local files older than 3 days
-                    find /home/pi/data/ -mindepth 3 -mtime +3 -type f -exec rm {} \;
+                if [ $? -eq 0 ]; then  #if successful, delete local files older than 1 hour
+                    find /home/pi/data/ -mindepth 3 -mmin +63 -type f -delete
                     echo "files deleted"
                 fi
                 cd $OPWD
