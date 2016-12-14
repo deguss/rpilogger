@@ -721,17 +721,17 @@ int main(int argc, char * argv[])
         }
     }     
 
-    /* if the files are more than 3 days older, delete them (else the -d 
+    /* if the files are more than 1 hour older, delete them (else the -d 
      * flag /dryrun/ is set. */
     int dryrun=1; //default no delete
     time_t rightnow;
     time(&rightnow);
-    if (rightnow - fnts[0].tv_sec > 3*24*60*60 )
+    if (rightnow - fnts[0].tv_sec > 62*60 )
         dryrun=0;
     if (argc>1 && !strcmp(argv[1],"-d"))
         dryrun=1;
     if (!dryrun)
-        printf("info: deleting files since older than 3 days\n");
+        printf("info: deleting files since older than 1 hour\n");
 
     
     /* after EVERY run the first file will be deleted */
