@@ -1,13 +1,12 @@
 # config I2C addresses
 # valid settings: 0x48, 0x49, 0x4A, 0x4B
-PREPROC+=-D CFG_ADC1=0x48
+PREPROC+=-D CFG_ADC1=0x49
+PREPROC+=-D CFG_ADC2=0x48
 
 # config sampling sequence
 # valid settings: ADS_CONF_MUX_D_01, ADS_CONF_MUX_D_23, etc. see in ads1115.h
 # (do not get confused if you only need 2 channels and the sequence number is not continous)
-PREPROC+=-D CFG_SEQ1_ADC1=ADS_CONF_MUX_S_0
-PREPROC+=-D CFG_SEQ2_ADC1=ADS_CONF_MUX_S_1
-PREPROC+=-D CFG_SEQ3_ADC1=ADS_CONF_MUX_S_2
-PREPROC+=-D CFG_SEQ4_ADC1=ADS_CONF_MUX_S_3
-
-
+PREPROC+=-D CFG_SEQ1_ADC1=ADS_CONF_MUX_D_01
+PREPROC+=-D CFG_SEQ2_ADC2=ADS_CONF_MUX_D_01
+#PREPROC+=-D CFG_SEQ3_ADC1=ADS_CONF_MUX_D_23
+#PREPROC+=-D CFG_SEQ4_ADC2=ADS_CONF_MUX_D_23

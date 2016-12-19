@@ -1,2 +1,6 @@
 src/main.c: In function ‘main’:
 src/main.c:489:41: warning: variable ‘tabs2’ set but not used [-Wunused-but-set-variable]
+src/main.c:254:31: warning: array subscript is above array bounds [-Warray-bounds]
+src/main.c:262:31: warning: array subscript is above array bounds [-Warray-bounds]
+src/main.c:254:31: warning: array subscript is above array bounds [-Warray-bounds]
+src/main.c:262:31: warning: array subscript is above array bounds [-Warray-bounds]
